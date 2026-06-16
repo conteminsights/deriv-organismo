@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}Painel Operacional · Deriv Organismo{% endblock %}
+{% block content %}
+<main class="page-shell">
+  <section class="hero">
+    <div class="label-tag">Design System Ferrari · Dark Mode</div>
+    <h1>Painel Operacional</h1>
+    <p class="subtitle">Visão humana do bootstrap atual da V1 com linguagem visual Ferrari: leitura rápida de status, conta principal, decisão mais recente e links operacionais para aprofundamento.</p>
+    <div class="status-badge"><span class="status-dot"></span> Aplicação {{ payload.app_status }}</div>
+  </section>
+
+  <hr class="section-divider" />
+
+  <section class="grid">
+    <article class="card kpi">
+      <div class="card-title">Conta principal</div>
+      <div class="metric-value">{{ account.account_slug }}</div>
+      <div class="metric-meta">ID: {{ account.account_id }}</div>
+    </article>
+
+    <article class="card kpi">
+      <div class="card-title">Modo</div>
+      <div class="metric-value">{{ account.mode }}</div>
+      <div class="metric-meta">Execução real continua protegida por promoção</div>
+    </article>
+
+    <article class="card kpi">
+      <div class="card-title">Blocos de risco</div>
+      <div class="metric-value">{{ risk_block_count }}</div>
+      <div class="metric-meta">Ocorrências visíveis na trilha atual</div>
+    </article>
+
+    <article class="card kpi">
+      <div class="card-title">Promoções</div>
+      <div class="metric-value">{{ promotion_count }}</div>
+      <div class="metric-meta">Governança demo-first ainda dominante</div>
+    </article>
+
+    <article class="card wide">
+      <div class="card-title">Última decisão</div>
+      <div class="item-list">
+        <div class="item">
+          <div class="item-label">Última decisão</div>
+          <div class="item-value">{{ decision.decision }}</div>
+          <div class="item-meta">Símbolo: {{ decision.symbol }} · Specialist: {{ decision.specialist_key }}</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="card side">
+      <div class="card-title">Leitura executiva</div>
+      <div class="item-list">
+        <div class="item">
+          <div class="item-label">Estado atual</div>
+          <div class="item-value">Operacional para revisão</div>
+          <div class="item-meta">A base já está adequada para validar arquitetura, fluxo demo e onboarding de contas por tenant.</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="card wide">
+      <div class="card-title">Próximos focos de produto</div>
+      <div class="item-list">
+        <div class="item">
+          <div class="item-value">1. Admin de contas e tokens</div>
+          <div class="item-meta">Conectar múltiplas contas Deriv com isolamento por tenant e validação segura.</div>
+        </div>
+        <div class="item">
+          <div class="item-value">2. Operações em tempo real</div>
+          <div class="item-meta">Mostrar entrada, saída, PnL flutuante e status vivo por trade.</div>
+        </div>
+        <div class="item">
+          <div class="item-value">3. Relatórios de performance</div>
+          <div class="item-meta">Consolidar saldo, ganhos, perdas, drawdown e performance por conta e estratégia.</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="card side">
+      <div class="card-title">APIs úteis</div>
+      <div class="link-cluster">
+        <a class="link-chip" href="/health">/health</a>
+        <a class="link-chip" href="/status">/status</a>
+        <a class="link-chip" href="/events">/events</a>
+        <a class="link-chip" href="/decisions/latest">/decisions/latest</a>
+        <a class="link-chip" href="/dashboard/data">/dashboard/data</a>
+      </div>
+    </article>
+  </section>
+</main>
+{% endblock %}

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}Deriv Organismo{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/ferrari-dark.css" />
+  </head>
+  <body>
+    <nav class="nav">
+      <a class="nav-brand" href="/dashboard">Contêm Insights · Deriv Organismo</a>
+      <div class="nav-links">
+        <a href="/dashboard" class="{% if active_page == 'dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="/admin/accounts" class="{% if active_page == 'admin_accounts' %}active{% endif %}">Contas</a>
+        <a href="/dashboard/data">Payload</a>
+        <a href="/events">Eventos</a>
+      </div>
+      <a class="nav-cta" href="/login">Acessar</a>
+    </nav>
+    {% block content %}{% endblock %}
+  </body>
+</html>

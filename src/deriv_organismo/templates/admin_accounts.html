@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %}Administração de Contas · Deriv Organismo{% endblock %}
+{% block content %}
+<main class="page-shell">
+  <section class="hero">
+    <div class="label-tag">Ferrari Admin Console</div>
+    <h1>Administração de Contas</h1>
+    <p class="subtitle">Painel inicial para cadastrar múltiplas contas Deriv por tenant, com token separado por conta e base pronta para futura comercialização multi-tenant.</p>
+    <div class="page-actions">
+      <a class="btn-primary-red" href="/admin/accounts/data">Ver dados brutos</a>
+      <a class="btn-secondary-ghost" href="/dashboard">Voltar ao dashboard</a>
+    </div>
+  </section>
+
+  <hr class="section-divider" />
+
+  <section class="grid">
+    <article class="card wide">
+      <div class="card-title">Cadastrar nova conta Deriv</div>
+      <div class="notice">Nesta fase, o cadastro já representa o modelo futuro: tenant_id, login_id, tipo da conta e token individual por conta.</div>
+      <form class="form-grid" method="post" action="/admin/accounts">
+        <div class="form-group">
+          <label class="form-label" for="tenant_id">tenant_id</label>
+          <input class="form-input" id="tenant_id" name="tenant_id" value="tenant_master" placeholder="tenant_master" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="login_id">login_id</label>
+          <input class="form-input" id="login_id" name="login_id" placeholder="CR123456" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="account_type">tipo da conta</label>
+          <select class="form-select" id="account_type" name="account_type">
+            <option value="demo">demo</option>
+            <option value="real">real</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="name">nome amigável</label>
+          <input class="form-input" id="name" name="name" placeholder="Conta Demo Principal" />
+        </div>
+        <div class="form-group full">
+          <label class="form-label" for="token">token da Deriv</label>
+          <input class="form-input" id="token" name="token" placeholder="Cole o token individual desta conta" />
+        </div>
+        <div class="form-group full">
+          <button class="btn-primary-red" type="button">Cadastrar conta</button>
+          <div class="helper-text">Nesta etapa, o POST real continua disponível via API JSON em <code>/admin/accounts</code>.</div>
+        </div>
+      </form>
+    </article>
+
+    <article class="card side">
+      <div class="card-title">Como este módulo evolui</div>
+      <div class="item-list">
+        <div class="item">
+          <div class="item-value">1. Segurança</div>
+          <div class="item-meta">Token já entra em fluxo de criptografia e validação antes de persistir.</div>
+        </div>
+        <div class="item">
+          <div class="item-value">2. Multi-tenant</div>
+          <div class="item-meta">Cada tenant poderá ter várias contas demo e real sem compartilhar credenciais.</div>
+        </div>
+        <div class="item">
+          <div class="item-value">3. Operação viva</div>
+          <div class="item-meta">Essas contas alimentarão a futura tela de operações em andamento.</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="card wide">
+      <div class="card-title">Contas cadastradas</div>
+      <div class="table-shell">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Conta</th>
+              <th>Tenant</th>
+              <th>Login ID</th>
+              <th>Tipo</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if accounts %}
+              {% for acc in accounts %}
+              <tr>
+                <td>{{ acc.name }}</td>
+                <td>{{ acc.tenant_id }}</td>
+                <td>{{ acc.login_id }}</td>
+                <td>{{ acc.account_type }}</td>
+                <td>{{ 'ativa' if acc.is_active else 'inativa' }}</td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="5">Nenhuma conta cadastrada ainda.</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  </section>
+</main>
+{% endblock %}
