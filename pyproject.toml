@@ -40,3 +40,8 @@ build-backend = "hatchling.build"
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 asyncio_mode = "auto"
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.4.0",
+]
