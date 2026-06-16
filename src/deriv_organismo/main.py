@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -65,11 +66,25 @@ def build_realtime_data_service(settings: Settings, account_service: DerivAccoun
     return DerivRealtimeDataService(account_service, gateway)
 
 
-def create_app(database_url: str | None = None, settings: Settings | None = None) -> FastAPI:
+@asynccontextmanager
+async def app_lifespan(app: FastAPI):
+    await create_all_tables(app.state.account_engine)
+    try:
+        yield
+    finally:
+        await app.state.account_engine.dispose()
+
+
+def create_app(
+    database_url: str | None = None,
+    settings: Settings | None = None,
+    *,
+    run_migrations_on_create: bool = True,
+) -> FastAPI:
     resolved_settings = settings or Settings()
     resolved_database_url = database_url or resolve_database_url(resolved_settings)
 
-    app = FastAPI(title='Deriv Organismo')
+    app = FastAPI(title='Deriv Organismo', lifespan=app_lifespan)
     app.add_middleware(SessionMiddleware, secret_key=resolved_settings.app_secret_key)
     app.state.settings = resolved_settings
     app.state.auth_service = build_auth_service(resolved_settings)
@@ -78,18 +93,11 @@ def create_app(database_url: str | None = None, settings: Settings | None = None
     app.state.account_service = account_service
     app.state.realtime_data_service = build_realtime_data_service(resolved_settings, account_service)
 
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        asyncio.run(create_all_tables(engine))
-
-    @app.on_event('startup')
-    async def startup() -> None:
-        await create_all_tables(engine)
-
-    @app.on_event('shutdown')
-    async def shutdown() -> None:
-        await engine.dispose()
+    if run_migrations_on_create:
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            asyncio.run(create_all_tables(engine))
 
     app.mount('/static', StaticFiles(directory=str(STATIC_DIR)), name='static')
     app.add_api_route('/health', health, methods=['GET'])
@@ -111,4 +119,4 @@ def create_app(database_url: str | None = None, settings: Settings | None = None
     return app
 
 
-app = create_app()
+app = create_app(run_migrations_on_create=False)
