@@ -2,20 +2,24 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from deriv_organismo.services.deriv_account_service import DerivAccountService
-from deriv_organismo.domain.deriv_account import DerivAccount, DerivCredential
+from deriv_organismo.domain.deriv_account import DerivAccount
 
 
 @pytest.fixture
 def service():
     """Fixture para DerivAccountService com mocks."""
     mock_repo = MagicMock()
+    mock_repo.save = AsyncMock()
+    mock_repo.save_credential = AsyncMock()
+    mock_repo.get_by_id = AsyncMock()
+    mock_repo.list_by_tenant = AsyncMock()
+
     mock_credential_manager = MagicMock()
     mock_validator = AsyncMock()
-    
-    # Configura comportamento padrão
+
     mock_validator.validate_token = AsyncMock(return_value=True)
     mock_credential_manager.encrypt_token = MagicMock(return_value="encrypted_token_xyz")
-    
+
     return DerivAccountService(
         account_repository=mock_repo,
         credential_manager=mock_credential_manager,
@@ -27,9 +31,9 @@ def service():
 async def test_register_account_creates_account_with_valid_token(service):
     """register_account cria conta quando token é válido."""
     service.token_validator.validate_token = AsyncMock(return_value=True)
-    service.account_repository.save = MagicMock()
-    service.account_repository.get_by_id = MagicMock(return_value=None)
-    
+    service.account_repository.save = AsyncMock()
+    service.account_repository.save_credential = AsyncMock()
+
     account, credential = await service.register_account(
         tenant_id="tenant_master",
         login_id="CR123456",
@@ -37,21 +41,22 @@ async def test_register_account_creates_account_with_valid_token(service):
         account_type="demo",
         name="Conta Demo"
     )
-    
+
     assert account is not None
     assert account.tenant_id == "tenant_master"
     assert account.login_id == "CR123456"
     assert account.account_type == "demo"
     assert credential is not None
     assert credential.encrypted_token == "encrypted_token_xyz"
-    service.account_repository.save.assert_called_once()
+    service.account_repository.save.assert_awaited_once()
+    service.account_repository.save_credential.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_register_account_fails_with_invalid_token(service):
     """register_account falha quando token é inválido."""
     service.token_validator.validate_token = AsyncMock(return_value=False)
-    
+
     with pytest.raises(ValueError, match="invalid token"):
         await service.register_account(
             tenant_id="tenant_master",
@@ -79,7 +84,7 @@ async def test_register_account_rejects_empty_token(service):
 async def test_register_account_rejects_invalid_account_type(service):
     """register_account rejeita account_type inválido."""
     service.token_validator.validate_token = AsyncMock(return_value=True)
-    
+
     with pytest.raises(ValueError, match="account_type must be 'demo' or 'real'"):
         await service.register_account(
             tenant_id="tenant_master",
@@ -102,13 +107,13 @@ async def test_list_accounts_by_tenant(service):
             name="Conta 1"
         )
     ]
-    service.account_repository.list_by_tenant = MagicMock(return_value=mock_accounts)
-    
-    result = service.list_accounts_by_tenant("tenant_a")
-    
+    service.account_repository.list_by_tenant = AsyncMock(return_value=mock_accounts)
+
+    result = await service.list_accounts_by_tenant("tenant_a")
+
     assert len(result) == 1
     assert result[0].tenant_id == "tenant_a"
-    service.account_repository.list_by_tenant.assert_called_once_with("tenant_a")
+    service.account_repository.list_by_tenant.assert_awaited_once_with("tenant_a")
 
 
 @pytest.mark.asyncio
@@ -122,19 +127,19 @@ async def test_deactivate_account_sets_is_active_false(service):
         name="Conta Ativa",
         is_active=True
     )
-    service.account_repository.get_by_id = MagicMock(return_value=account)
-    service.account_repository.save = MagicMock()
-    
-    result = service.deactivate_account("acc_123")
-    
+    service.account_repository.get_by_id = AsyncMock(return_value=account)
+    service.account_repository.save = AsyncMock()
+
+    result = await service.deactivate_account("acc_123")
+
     assert result.is_active is False
-    service.account_repository.save.assert_called_once()
+    service.account_repository.save.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_deactivate_account_fails_if_not_found(service):
     """deactivate_account falha se conta não existir."""
-    service.account_repository.get_by_id = MagicMock(return_value=None)
-    
+    service.account_repository.get_by_id = AsyncMock(return_value=None)
+
     with pytest.raises(ValueError, match="account not found"):
-        service.deactivate_account("nonexistent")
+        await service.deactivate_account("nonexistent")

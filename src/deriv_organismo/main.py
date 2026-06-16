@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -11,13 +12,46 @@ from deriv_organismo.api.routes_events import latest_decision, list_events
 from deriv_organismo.api.routes_health import health, status
 from deriv_organismo.api.routes_operations import operations_data, operations_page
 from deriv_organismo.api.routes_performance import performance_data, performance_page
+from deriv_organismo.db.session import build_engine, build_session_factory, create_all_tables
+from deriv_organismo.repositories.sql_account_repository import SqlAlchemyAccountRepository
+from deriv_organismo.services.credential_manager import CredentialManager
+from deriv_organismo.services.deriv_account_service import DerivAccountService
+from deriv_organismo.services.deriv_token_validator import DerivTokenValidator
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / 'static'
+DEFAULT_DATABASE_URL = 'sqlite+aiosqlite:///./deriv-organismo.db'
 
 
-def create_app() -> FastAPI:
+def build_account_service(database_url: str) -> tuple:
+    engine = build_engine(database_url)
+    session_factory = build_session_factory(engine)
+    repository = SqlAlchemyAccountRepository(session_factory)
+    credential_manager = CredentialManager(secret_key='temp-secret-key-32-bytes-long!!')
+    token_validator = DerivTokenValidator()
+    service = DerivAccountService(repository, credential_manager, token_validator)
+    return engine, service
+
+
+def create_app(database_url: str = DEFAULT_DATABASE_URL) -> FastAPI:
     app = FastAPI(title='Deriv Organismo')
+    engine, account_service = build_account_service(database_url)
+    app.state.account_engine = engine
+    app.state.account_service = account_service
+
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.run(create_all_tables(engine))
+
+    @app.on_event('startup')
+    async def startup() -> None:
+        await create_all_tables(engine)
+
+    @app.on_event('shutdown')
+    async def shutdown() -> None:
+        await engine.dispose()
+
     app.mount('/static', StaticFiles(directory=str(STATIC_DIR)), name='static')
     app.add_api_route('/health', health, methods=['GET'])
     app.add_api_route('/status', status, methods=['GET'])

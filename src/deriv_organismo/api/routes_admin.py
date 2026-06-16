@@ -6,17 +6,9 @@ from pydantic import BaseModel
 
 from deriv_organismo.api.platform_payloads import seeded_accounts, summarize_accounts
 from deriv_organismo.api.templating import templates
-from deriv_organismo.repositories.account_repository import AccountRepository
-from deriv_organismo.services.credential_manager import CredentialManager
 from deriv_organismo.services.deriv_account_service import DerivAccountService
-from deriv_organismo.services.deriv_token_validator import DerivTokenValidator
 
 router = APIRouter(prefix='/admin', tags=['admin'])
-
-account_repo = AccountRepository()
-credential_manager = CredentialManager(secret_key='temp-secret-key-32-bytes-long!!')
-token_validator = DerivTokenValidator()
-account_service = DerivAccountService(account_repo, credential_manager, token_validator)
 
 
 class RegisterAccountRequest(BaseModel):
@@ -36,13 +28,18 @@ class RegisterAccountResponse(BaseModel):
     is_active: bool
 
 
-def serialize_accounts(tenant_id: str) -> list[dict]:
-    return seeded_accounts(account_service.list_accounts_by_tenant(tenant_id), tenant_id)
+def get_account_service(request: Request) -> DerivAccountService:
+    return request.app.state.account_service
+
+
+async def serialize_accounts(request: Request, tenant_id: str) -> list[dict]:
+    accounts = await get_account_service(request).list_accounts_by_tenant(tenant_id)
+    return seeded_accounts(accounts, tenant_id)
 
 
 @router.get('/accounts')
 async def admin_accounts_page(request: Request, tenant_id: str = 'tenant_master'):
-    accounts = serialize_accounts(tenant_id)
+    accounts = await serialize_accounts(request, tenant_id)
     return templates.TemplateResponse(
         request=request,
         name='admin_accounts.html',
@@ -56,8 +53,8 @@ async def admin_accounts_page(request: Request, tenant_id: str = 'tenant_master'
 
 
 @router.get('/accounts/data', response_model=list[RegisterAccountResponse])
-async def list_accounts_data(tenant_id: str = 'tenant_master'):
-    rows = serialize_accounts(tenant_id)
+async def list_accounts_data(request: Request, tenant_id: str = 'tenant_master'):
+    rows = await serialize_accounts(request, tenant_id)
     return [
         RegisterAccountResponse(
             account_id=item['account_id'],
@@ -72,14 +69,14 @@ async def list_accounts_data(tenant_id: str = 'tenant_master'):
 
 
 @router.post('/accounts', response_model=RegisterAccountResponse, status_code=201)
-async def register_account(request: RegisterAccountRequest):
+async def register_account(request: Request, payload: RegisterAccountRequest):
     try:
-        account, _credential = await account_service.register_account(
-            tenant_id=request.tenant_id,
-            login_id=request.login_id,
-            token=request.token,
-            account_type=request.account_type,
-            name=request.name,
+        account, _credential = await get_account_service(request).register_account(
+            tenant_id=payload.tenant_id,
+            login_id=payload.login_id,
+            token=payload.token,
+            account_type=payload.account_type,
+            name=payload.name,
         )
         return RegisterAccountResponse(
             account_id=account.account_id,
@@ -90,4 +87,4 @@ async def register_account(request: RegisterAccountRequest):
             is_active=account.is_active,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
