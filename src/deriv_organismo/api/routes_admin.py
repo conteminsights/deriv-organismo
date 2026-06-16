@@ -2,9 +2,9 @@
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from deriv_organismo.api.platform_payloads import seeded_accounts, summarize_accounts
 from deriv_organismo.api.templating import templates
 from deriv_organismo.repositories.account_repository import AccountRepository
 from deriv_organismo.services.credential_manager import CredentialManager
@@ -36,23 +36,13 @@ class RegisterAccountResponse(BaseModel):
     is_active: bool
 
 
-def _serialize_accounts(tenant_id: str) -> list[dict]:
-    return [
-        {
-            'account_id': acc.account_id,
-            'tenant_id': acc.tenant_id,
-            'login_id': acc.login_id,
-            'account_type': acc.account_type,
-            'name': acc.name,
-            'is_active': acc.is_active,
-        }
-        for acc in account_service.list_accounts_by_tenant(tenant_id)
-    ]
+def serialize_accounts(tenant_id: str) -> list[dict]:
+    return seeded_accounts(account_service.list_accounts_by_tenant(tenant_id), tenant_id)
 
 
 @router.get('/accounts')
 async def admin_accounts_page(request: Request, tenant_id: str = 'tenant_master'):
-    accounts = _serialize_accounts(tenant_id)
+    accounts = serialize_accounts(tenant_id)
     return templates.TemplateResponse(
         request=request,
         name='admin_accounts.html',
@@ -60,13 +50,25 @@ async def admin_accounts_page(request: Request, tenant_id: str = 'tenant_master'
             'active_page': 'admin_accounts',
             'accounts': accounts,
             'tenant_id': tenant_id,
+            'summary': summarize_accounts(accounts),
         },
     )
 
 
 @router.get('/accounts/data', response_model=list[RegisterAccountResponse])
 async def list_accounts_data(tenant_id: str = 'tenant_master'):
-    return [RegisterAccountResponse(**item) for item in _serialize_accounts(tenant_id)]
+    rows = serialize_accounts(tenant_id)
+    return [
+        RegisterAccountResponse(
+            account_id=item['account_id'],
+            tenant_id=item['tenant_id'],
+            login_id=item['login_id'],
+            account_type=item['account_type'],
+            name=item['name'],
+            is_active=item['is_active'],
+        )
+        for item in rows
+    ]
 
 
 @router.post('/accounts', response_model=RegisterAccountResponse, status_code=201)

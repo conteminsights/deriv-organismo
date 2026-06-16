@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+{% block title %}Relatório de Performance · Deriv Organismo{% endblock %}
+{% block content %}
+<main class="page-shell">
+  <section class="hero">
+    <div class="label-tag">Ferrari Performance Review</div>
+    <h1>Relatório de Performance</h1>
+    <p class="subtitle">Leitura consolidada por conta para saldo, ganhos, perdas, PnL líquido, drawdown e distribuição por estratégia. Nesta fase, a tela já reflete o contrato futuro mesmo antes da persistência completa em banco.</p>
+    <div class="page-actions">
+      <a class="btn-primary-red" href="/performance/data">Ver dados brutos</a>
+      <a class="btn-secondary-ghost" href="/dashboard">Voltar ao dashboard</a>
+    </div>
+    <div class="status-badge"><span class="status-dot"></span> Consolidado gerado {{ payload.generated_at }} · tenant {{ payload.tenant_id }}</div>
+  </section>
+
+  <hr class="section-divider" />
+
+  <section class="grid">
+    <article class="card kpi">
+      <div class="card-title">Saldo consolidado</div>
+      <div class="metric-value">{{ payload.portfolio.balance_current }}</div>
+      <div class="metric-meta">Saldo inicial {{ payload.portfolio.balance_start }}</div>
+    </article>
+
+    <article class="card kpi">
+      <div class="card-title">PnL líquido</div>
+      <div class="metric-value">{{ payload.portfolio.net_pnl }}</div>
+      <div class="metric-meta">Resultado acumulado do tenant</div>
+    </article>
+
+    <article class="card kpi">
+      <div class="card-title">Ganhos</div>
+      <div class="metric-value">{{ payload.portfolio.gains }}</div>
+      <div class="metric-meta">Lucro bruto consolidado</div>
+    </article>
+
+    <article class="card kpi">
+      <div class="card-title">Perdas</div>
+      <div class="metric-value">{{ payload.portfolio.losses }}</div>
+      <div class="metric-meta">Perda bruta consolidada</div>
+    </article>
+
+    <article class="card wide">
+      <div class="card-title">Performance por conta</div>
+      <div class="table-shell">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Conta</th>
+              <th>Tipo</th>
+              <th>Saldo inicial</th>
+              <th>Saldo atual</th>
+              <th>Ganhos</th>
+              <th>Perdas</th>
+              <th>PnL líquido</th>
+              <th>Win rate</th>
+              <th>Drawdown</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for account in payload.accounts %}
+            <tr>
+              <td>
+                <div>{{ account.account_name }}</div>
+                <div class="table-subtext">{{ account.login_id }}</div>
+              </td>
+              <td>{{ account.account_type }}</td>
+              <td>{{ account.balance_start }}</td>
+              <td>{{ account.balance_current }}</td>
+              <td>{{ account.gains }}</td>
+              <td>{{ account.losses }}</td>
+              <td>
+                <span class="pill {% if account.net_pnl > 0 %}pill-positive{% elif account.net_pnl < 0 %}pill-negative{% else %}pill-neutral{% endif %}">
+                  {{ account.net_pnl }}
+                </span>
+              </td>
+              <td>{{ account.win_rate }}%</td>
+              <td>{{ account.drawdown }}%</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card side">
+      <div class="card-title">Distribuição por estratégia</div>
+      <div class="item-list">
+        {% for item in payload.strategy_breakdown %}
+        <div class="item">
+          <div class="item-value">{{ item.strategy }}</div>
+          <div class="item-meta">{{ item.share }}% da atividade observada</div>
+        </div>
+        {% endfor %}
+      </div>
+    </article>
+
+    <article class="card wide">
+      <div class="card-title">Série diária</div>
+      <div class="mini-chart">
+        {% for day in payload.daily_series %}
+        <div class="mini-bar-group">
+          <div class="mini-bar {% if day.net_pnl >= 0 %}mini-bar-positive{% else %}mini-bar-negative{% endif %}" style="height: {{ (day.net_pnl if day.net_pnl >= 0 else day.net_pnl * -1) * 4 + 24 }}px"></div>
+          <div class="mini-bar-label">{{ day.day }}</div>
+          <div class="mini-bar-value">{{ day.net_pnl }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </article>
+
+    <article class="card side">
+      <div class="card-title">APIs úteis</div>
+      <div class="link-cluster">
+        <a class="link-chip" href="/performance/data">/performance/data</a>
+        <a class="link-chip" href="/operations">/operations</a>
+        <a class="link-chip" href="/admin/accounts">/admin/accounts</a>
+      </div>
+    </article>
+  </section>
+</main>
+{% endblock %}

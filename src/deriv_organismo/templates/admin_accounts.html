@@ -5,7 +5,7 @@
   <section class="hero">
     <div class="label-tag">Ferrari Admin Console</div>
     <h1>Administração de Contas</h1>
-    <p class="subtitle">Painel inicial para cadastrar múltiplas contas Deriv por tenant, com token separado por conta e base pronta para futura comercialização multi-tenant.</p>
+    <p class="subtitle">Painel para cadastrar múltiplas contas Deriv por tenant, com leitura de saúde do tenant, status da conexão e desenho pronto para futura comercialização multi-tenant.</p>
     <div class="page-actions">
       <a class="btn-primary-red" href="/admin/accounts/data">Ver dados brutos</a>
       <a class="btn-secondary-ghost" href="/dashboard">Voltar ao dashboard</a>
@@ -15,9 +15,33 @@
   <hr class="section-divider" />
 
   <section class="grid">
+    <article class="card kpi">
+      <div class="card-title">Saúde do tenant</div>
+      <div class="metric-value">{{ summary.active_accounts }}/{{ summary.total_accounts }}</div>
+      <div class="metric-meta">Contas ativas / total cadastradas</div>
+    </article>
+
+    <article class="card kpi">
+      <div class="card-title">Contas demo</div>
+      <div class="metric-value">{{ summary.demo_accounts }}</div>
+      <div class="metric-meta">Base para experimentação controlada</div>
+    </article>
+
+    <article class="card kpi">
+      <div class="card-title">Contas real</div>
+      <div class="metric-value">{{ summary.real_accounts }}</div>
+      <div class="metric-meta">Protegidas até promoção explícita</div>
+    </article>
+
+    <article class="card kpi">
+      <div class="card-title">Status da conexão</div>
+      <div class="metric-value">{{ summary.validated_accounts }}</div>
+      <div class="metric-meta">Contas em preview/validadas para uso</div>
+    </article>
+
     <article class="card wide">
       <div class="card-title">Cadastrar nova conta Deriv</div>
-      <div class="notice">Nesta fase, o cadastro já representa o modelo futuro: tenant_id, login_id, tipo da conta e token individual por conta.</div>
+      <div class="notice">Nesta fase, o cadastro já representa o modelo futuro: tenant_id, login_id, tipo da conta, token individual por conta e conexão por tenant.</div>
       <form class="form-grid" method="post" action="/admin/accounts">
         <div class="form-group">
           <label class="form-label" for="tenant_id">tenant_id</label>
@@ -54,7 +78,7 @@
       <div class="item-list">
         <div class="item">
           <div class="item-value">1. Segurança</div>
-          <div class="item-meta">Token já entra em fluxo de criptografia e validação antes de persistir.</div>
+          <div class="item-meta">Token entra em fluxo de criptografia e validação antes de persistir.</div>
         </div>
         <div class="item">
           <div class="item-value">2. Multi-tenant</div>
@@ -62,7 +86,7 @@
         </div>
         <div class="item">
           <div class="item-value">3. Operação viva</div>
-          <div class="item-meta">Essas contas alimentarão a futura tela de operações em andamento.</div>
+          <div class="item-meta">Essas contas alimentam as telas de operações em andamento e performance.</div>
         </div>
       </div>
     </article>
@@ -78,24 +102,28 @@
               <th>Login ID</th>
               <th>Tipo</th>
               <th>Status</th>
+              <th>Última validação</th>
+              <th>Última sincronização</th>
             </tr>
           </thead>
           <tbody>
-            {% if accounts %}
-              {% for acc in accounts %}
-              <tr>
-                <td>{{ acc.name }}</td>
-                <td>{{ acc.tenant_id }}</td>
-                <td>{{ acc.login_id }}</td>
-                <td>{{ acc.account_type }}</td>
-                <td>{{ 'ativa' if acc.is_active else 'inativa' }}</td>
-              </tr>
-              {% endfor %}
-            {% else %}
-              <tr>
-                <td colspan="5">Nenhuma conta cadastrada ainda.</td>
-              </tr>
-            {% endif %}
+            {% for acc in accounts %}
+            <tr>
+              <td>
+                <div>{{ acc.name }}</div>
+                <div class="table-subtext">{{ acc.account_id }}</div>
+              </td>
+              <td>{{ acc.tenant_id }}</td>
+              <td>{{ acc.login_id }}</td>
+              <td>{{ acc.account_type }}</td>
+              <td>
+                <div>{{ acc.connection_status }}</div>
+                <div class="table-subtext">{{ 'ativa' if acc.is_active else 'inativa' }}</div>
+              </td>
+              <td>{{ acc.last_validated_at }}</td>
+              <td>{{ acc.last_sync }}</td>
+            </tr>
+            {% endfor %}
           </tbody>
         </table>
       </div>

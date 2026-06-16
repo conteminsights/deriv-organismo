@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% block title %}Operações em Tempo Real · Deriv Organismo{% endblock %}
+{% block content %}
+<main class="page-shell">
+  <section class="hero">
+    <div class="label-tag">Ferrari Live Operations Console</div>
+    <h1>Operações em Tempo Real</h1>
+    <p class="subtitle">Tela para acompanhar trades em andamento por conta, com leitura rápida de entrada, estado da operação, PnL flutuante e risco observado. Nesta fase, a fonte é um bootstrap preview honesto da futura operação viva.</p>
+    <div class="page-actions">
+      <a class="btn-primary-red" href="/operations/data">Ver dados brutos</a>
+      <a class="btn-secondary-ghost" href="/dashboard">Voltar ao dashboard</a>
+    </div>
+    <div class="status-badge"><span class="status-dot"></span> Atualização automática a cada {{ payload.refresh_seconds }}s · fonte {{ payload.data_source }}</div>
+  </section>
+
+  <hr class="section-divider" />
+
+  <section class="grid">
+    <article class="card kpi">
+      <div class="card-title">Trades ativos</div>
+      <div class="metric-value">{{ payload.active_count }}</div>
+      <div class="metric-meta">Operações abertas em revisão contínua</div>
+    </article>
+
+    <article class="card kpi">
+      <div class="card-title">No positivo</div>
+      <div class="metric-value">{{ payload.profitable_count }}</div>
+      <div class="metric-meta">PnL flutuante acima de zero</div>
+    </article>
+
+    <article class="card kpi">
+      <div class="card-title">No negativo</div>
+      <div class="metric-value">{{ payload.losing_count }}</div>
+      <div class="metric-meta">Exigem atenção de saída e risco</div>
+    </article>
+
+    <article class="card kpi">
+      <div class="card-title">Contas monitoradas</div>
+      <div class="metric-value">{{ payload.monitored_accounts }}</div>
+      <div class="metric-meta">Tenant {{ payload.tenant_id }}</div>
+    </article>
+
+    <article class="card wide">
+      <div class="card-title">Operações em andamento</div>
+      <div class="table-shell">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Conta</th>
+              <th>Trade</th>
+              <th>Estratégia</th>
+              <th>Entrada</th>
+              <th>Preço atual</th>
+              <th>Stake</th>
+              <th>PnL flutuante</th>
+              <th>Status da conexão</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for operation in payload.operations %}
+            <tr>
+              <td>
+                <div>{{ operation.account_name }}</div>
+                <div class="table-subtext">{{ operation.login_id }}</div>
+              </td>
+              <td>
+                <div>{{ operation.symbol }} · {{ operation.side }}</div>
+                <div class="table-subtext">Abertura {{ operation.opened_at }}</div>
+              </td>
+              <td>{{ operation.strategy }}</td>
+              <td>{{ operation.entry_price }}</td>
+              <td>{{ operation.current_price }}</td>
+              <td>{{ operation.stake }}</td>
+              <td>
+                <span class="pill {% if operation.pnl_float > 0 %}pill-positive{% elif operation.pnl_float < 0 %}pill-negative{% else %}pill-neutral{% endif %}">
+                  {{ operation.pnl_float }} · {{ operation.pnl_pct }}%
+                </span>
+              </td>
+              <td>
+                <div>{{ operation.status }}</div>
+                <div class="table-subtext">Risco: {{ operation.risk_state }}</div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card side">
+      <div class="card-title">Contas observadas</div>
+      <div class="item-list">
+        {% for account in payload.account_summaries %}
+        <div class="item">
+          <div class="item-label">{{ account.mode_label }}</div>
+          <div class="item-value">{{ account.name }}</div>
+          <div class="item-meta">{{ account.login_id }} · {{ account.connection_status }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </article>
+
+    <article class="card wide">
+      <div class="card-title">Leitura operacional</div>
+      <div class="item-list">
+        <div class="item">
+          <div class="item-value">Entrada e saída precisam aparecer por trade</div>
+          <div class="item-meta">Esta tela já organiza a unidade principal por operação, com espaço para plugar websocket e eventos reais depois.</div>
+        </div>
+        <div class="item">
+          <div class="item-value">PnL flutuante deve ser sempre por conta e por trade</div>
+          <div class="item-meta">Assim você evita consolidar cedo demais e enxerga risco pontual antes do fechamento.</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="card side">
+      <div class="card-title">APIs úteis</div>
+      <div class="link-cluster">
+        <a class="link-chip" href="/operations/data">/operations/data</a>
+        <a class="link-chip" href="/events">/events</a>
+        <a class="link-chip" href="/accounts">/accounts</a>
+      </div>
+    </article>
+  </section>
+</main>
+<script>
+  setTimeout(() => window.location.reload(), {{ payload.refresh_seconds * 1000 }});
+</script>
+{% endblock %}

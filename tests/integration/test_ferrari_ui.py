@@ -24,6 +24,8 @@ def test_admin_accounts_page_is_human_friendly_html():
     assert "Administração de Contas" in response.text
     assert "Cadastrar nova conta Deriv" in response.text
     assert "tenant_id" in response.text
+    assert "Saúde do tenant" in response.text
+    assert "Status da conexão" in response.text
 
 
 def test_admin_accounts_data_route_returns_json():
