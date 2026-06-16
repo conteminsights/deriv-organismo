@@ -6,6 +6,10 @@ from deriv_organismo.domain.accounts import AccountContext
 from deriv_organismo.integrations.deriv.trading import DerivTradingGateway
 
 
+class RealExecutionBlocked(Exception):
+    pass
+
+
 class TradeRequest(BaseModel):
     account_id: str
     tenant_id: str
@@ -65,6 +69,8 @@ class ExecutionService:
         symbol: str,
         amount: float,
         strategy_key: str,
+        requires_human_approval: bool = False,
+        human_approval: bool = False,
     ) -> ExecutionResult:
         request = self.build_trade_request(
             account=account,
@@ -85,17 +91,24 @@ class ExecutionService:
             )
         ]
 
-        if request.mode == "real" and request.strategy_key not in self.promoted_strategies:
+        try:
+            self.ensure_real_can_execute(
+                is_promoted=request.strategy_key in self.promoted_strategies,
+                account=account,
+                requires_human_approval=requires_human_approval,
+                human_approval=human_approval,
+            )
+        except RealExecutionBlocked as exc:
             events.append(
                 self._record_event(
                     account_id=request.account_id,
                     event_type="trade_blocked",
-                    payload={"reason_code": "real_mode_requires_promotion"},
+                    payload={"reason_code": str(exc)},
                 )
             )
             return ExecutionResult(
                 status="blocked",
-                reason_code="real_mode_requires_promotion",
+                reason_code=str(exc),
                 events=events,
             )
 
@@ -143,6 +156,23 @@ class ExecutionService:
             proposal_request=proposal_request,
             buy_request=buy_request,
         )
+
+    def ensure_real_can_execute(
+        self,
+        *,
+        is_promoted: bool,
+        account: AccountContext,
+        requires_human_approval: bool = False,
+        human_approval: bool = False,
+    ) -> None:
+        if account.mode != "real":
+            return
+
+        if not is_promoted:
+            raise RealExecutionBlocked("real_mode_requires_promotion")
+
+        if requires_human_approval and not human_approval:
+            raise RealExecutionBlocked("real_mode_requires_human_approval")
 
     def _record_event(self, *, account_id: str, event_type: str, payload: dict) -> ExecutionEvent:
         event = ExecutionEvent(account_id=account_id, event_type=event_type, payload=payload)
