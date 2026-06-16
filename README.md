@@ -84,15 +84,25 @@ Depois de subir a API localmente, use:
    - `uv sync`
 2. Criar ambiente local:
    - `cp .env.example .env`
-3. Preencher `.env` sem commitar segredos:
-   - URLs locais de Postgres/Redis
-   - `DERIV_APP_ID`
-   - futuros tokens somente fora do repositório
+3. Em `APP_ENV=dev`, você pode começar sem Postgres:
+   - deixe `DATABASE_URL=` vazio para usar `sqlite+aiosqlite:///./deriv-organismo.db`
+   - deixe `REDIS_URL=` vazio para usar `redis://localhost:6379/0`
+4. Se quiser rodar com Postgres local já nessa fase:
+   - preencher `DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/deriv_organismo`
+   - preencher `REDIS_URL=redis://localhost:6379/0`
+5. Em produção/staging, `DATABASE_URL` deve ser explícito.
+6. Preencher `DERIV_APP_ID` sem commitar segredos.
 
 ## Execução local
 
-Subir a API:
+Subir a API em dev simples (SQLite local automático):
 - `uv run uvicorn deriv_organismo.main:app --reload`
+
+Aplicar migrations no banco configurado:
+- `uv run alembic upgrade head`
+
+Voltar para base em ambiente descartável:
+- `uv run alembic downgrade base`
 
 Rodar um ciclo único do worker:
 - `uv run python scripts/run_market_loop.py`

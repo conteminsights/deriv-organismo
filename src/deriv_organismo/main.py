@@ -12,6 +12,7 @@ from deriv_organismo.api.routes_events import latest_decision, list_events
 from deriv_organismo.api.routes_health import health, status
 from deriv_organismo.api.routes_operations import operations_data, operations_page
 from deriv_organismo.api.routes_performance import performance_data, performance_page
+from deriv_organismo.config import DEFAULT_DEV_DATABASE_URL, Settings
 from deriv_organismo.db.session import build_engine, build_session_factory, create_all_tables
 from deriv_organismo.repositories.sql_account_repository import SqlAlchemyAccountRepository
 from deriv_organismo.services.credential_manager import CredentialManager
@@ -20,7 +21,14 @@ from deriv_organismo.services.deriv_token_validator import DerivTokenValidator
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / 'static'
-DEFAULT_DATABASE_URL = 'sqlite+aiosqlite:///./deriv-organismo.db'
+DEFAULT_DATABASE_URL = DEFAULT_DEV_DATABASE_URL
+
+
+def resolve_database_url(settings: Settings) -> str:
+    database_url = settings.database_url
+    if database_url is None:
+        raise ValueError('DATABASE_URL could not be resolved from settings')
+    return database_url
 
 
 def build_account_service(database_url: str) -> tuple:
@@ -33,9 +41,13 @@ def build_account_service(database_url: str) -> tuple:
     return engine, service
 
 
-def create_app(database_url: str = DEFAULT_DATABASE_URL) -> FastAPI:
+def create_app(database_url: str | None = None, settings: Settings | None = None) -> FastAPI:
+    resolved_settings = settings or Settings()
+    resolved_database_url = database_url or resolve_database_url(resolved_settings)
+
     app = FastAPI(title='Deriv Organismo')
-    engine, account_service = build_account_service(database_url)
+    engine, account_service = build_account_service(resolved_database_url)
+    app.state.settings = resolved_settings
     app.state.account_engine = engine
     app.state.account_service = account_service
 

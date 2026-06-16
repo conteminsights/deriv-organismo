@@ -19,19 +19,25 @@ O objetivo aqui não é provar produção; é revisar:
    - `uv sync`
 2. Criar arquivo de ambiente:
    - `cp .env.example .env`
-3. Preencher `.env` com regras seguras:
-   - nunca commitar segredos
-   - usar valores locais para Postgres e Redis
-   - preencher `DERIV_APP_ID` fora do git
-   - futuros tokens devem ficar apenas no `.env`
+3. Para começar rápido em `APP_ENV=dev`:
+   - pode deixar `DATABASE_URL=` vazio e usar SQLite local automático
+   - pode deixar `REDIS_URL=` vazio e usar `redis://localhost:6379/0`
+4. Se quiser validar com Postgres/Redis locais desde já:
+   - preencher `DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/deriv_organismo`
+   - preencher `REDIS_URL=redis://localhost:6379/0`
+5. Em `prod`/`staging`, `DATABASE_URL` deve ser explícito.
+6. Preencher `DERIV_APP_ID` fora do git.
 
 ## Subir infraestrutura
 
-Quando precisar de banco e cache locais:
+Quando quiser rodar com Postgres e Redis locais:
 - `docker compose up -d`
 
 Checar containers:
 - `docker compose ps`
+
+Aplicar migrations no banco configurado:
+- `uv run alembic upgrade head`
 
 ## Subir a API
 
