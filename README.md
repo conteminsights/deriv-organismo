@@ -2,15 +2,46 @@
 
 V1 do organismo autônomo para operação inicial em demo na Deriv.
 
-## Objetivo
+## O que já existe hoje
 
-Fechar uma base funcional para:
-- leitura de mercado
-- decisão por especialistas
-- risco soberano
-- execução demo isolada por conta
-- trilha auditável
+A base atual já entrega um fluxo mínimo funcional para revisão técnica:
+- especialistas de decisão por regime
+- seleção via meta-agent
+- score contextual e risco soberano
+- execução demo protegida por `account_id`
+- bloqueio explícito para execução real não promovida
+- trilha auditável básica
 - API operacional mínima
+- worker de ciclo único
+- dashboard mínimo em JSON
+
+## O que este projeto é nesta fase
+
+Esta V1 ainda é um bootstrap operacional, não uma mesa pronta para produção real.
+Ela serve para:
+- validar arquitetura
+- revisar contratos internos
+- testar o fluxo demo ponta a ponta
+- preparar a próxima rodada de integração real
+
+Ela ainda não serve para:
+- operação real contínua sem supervisão
+- promoção automática madura
+- observabilidade persistente completa
+- interface visual final
+
+## Como revisar rápido
+
+Se você quer entender o sistema sem entrar no código inteiro, siga esta ordem:
+
+1. Ler este README
+2. Abrir `docs/runbooks/local-demo.md`
+3. Subir a API local
+4. Ver `GET /status`
+5. Ver `GET /dashboard`
+6. Ver `GET /dashboard/data`
+7. Rodar o worker de ciclo único
+8. Revisar `docs/runbooks/promotion-readiness.md`
 
 ## Estrutura principal
 
@@ -20,17 +51,43 @@ Fechar uma base funcional para:
 - `src/deriv_organismo/api/` — rotas operacionais
 - `src/deriv_organismo/observability/` — eventos e logging
 - `docs/runbooks/` — operação local e readiness
+- `tests/` — cobertura unitária e de integração
+
+## Fluxo funcional atual
+
+Hoje o fluxo da V1 é, em termos práticos:
+1. carregar frame de mercado
+2. classificar regime
+3. selecionar especialistas
+4. avaliar sinais
+5. aplicar score contextual
+6. aplicar risco soberano
+7. decidir
+8. executar em demo quando permitido
+9. registrar eventos
+10. expor estado mínimo via API
+
+## Rotas para revisão rápida
+
+Depois de subir a API localmente, use:
+- `GET /health`
+- `GET /status`
+- `GET /accounts`
+- `GET /events`
+- `GET /decisions/latest`
+- `GET /dashboard`
+- `GET /dashboard/data`
 
 ## Bootstrap local
 
-1. Criar/usar o ambiente do projeto:
+1. Instalar dependências:
    - `uv sync`
-2. Copiar a base de ambiente:
+2. Criar ambiente local:
    - `cp .env.example .env`
 3. Preencher `.env` sem commitar segredos:
    - URLs locais de Postgres/Redis
    - `DERIV_APP_ID`
-   - futuros tokens fora do repositório
+   - futuros tokens somente fora do repositório
 
 ## Execução local
 
@@ -42,17 +99,32 @@ Rodar um ciclo único do worker:
 
 ## Testes
 
-Rodar suíte completa:
+Suíte completa:
 - `uv run pytest tests -q`
 
-Rodar integração específica:
+Integrações:
 - `uv run pytest tests/integration -q`
+
+Tipagem:
+- `uv run mypy src`
+
+Lint:
+- `uv run ruff check .`
 
 ## Runbooks
 
 - `docs/runbooks/local-demo.md`
 - `docs/runbooks/promotion-readiness.md`
 
-## Escopo atual da V1
+## Limites conhecidos da V1
 
-A V1 está preparada para demo-first. Execução real só pode ocorrer com promoção explícita e, quando exigido, aprovação humana.
+- respostas de dashboard e parte da trilha ainda são mínimas
+- há componentes com dados stubados para sustentar o fluxo
+- worker ainda não é um orquestrador robusto de longa duração
+- integração Deriv ainda está em estágio inicial
+- não existe interface visual rica; o "dashboard" atual é JSON operacional
+
+## Estado de segurança
+
+A V1 está preparada para demo-first.
+Execução real só pode ocorrer com promoção explícita e, quando exigido, aprovação humana.
