@@ -55,6 +55,15 @@ class DerivAccountService:
     async def list_accounts_by_tenant(self, tenant_id: str) -> list[DerivAccount]:
         return await self.account_repository.list_by_tenant(tenant_id)
 
+    async def get_plaintext_token(self, tenant_id: str, account_id: str) -> str:
+        account = await self.account_repository.get_by_tenant_and_id(tenant_id, account_id)
+        if not account:
+            raise ValueError('account not found')
+        credential = await self.account_repository.get_credential(account_id)
+        if not credential or credential.tenant_id != tenant_id:
+            raise ValueError('credential not found')
+        return self.credential_manager.decrypt_token(credential.encrypted_token)
+
     async def deactivate_account(self, account_id: str) -> DerivAccount:
         account = await self.account_repository.get_by_id(account_id)
         if not account:

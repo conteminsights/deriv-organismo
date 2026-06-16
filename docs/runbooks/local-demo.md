@@ -22,11 +22,13 @@ O objetivo aqui não é provar produção; é revisar:
 3. Para começar rápido em `APP_ENV=dev`:
    - pode deixar `DATABASE_URL=` vazio e usar SQLite local automático
    - pode deixar `REDIS_URL=` vazio e usar `redis://localhost:6379/0`
-4. Se quiser validar com Postgres/Redis locais desde já:
-   - preencher `DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/deriv_organismo`
-   - preencher `REDIS_URL=redis://localhost:6379/0`
-5. Em `prod`/`staging`, `DATABASE_URL` deve ser explícito.
-6. Preencher `DERIV_APP_ID` fora do git.
+4. Defina `APP_SECRET_KEY` e `CREDENTIAL_SECRET_KEY` no `.env`.
+5. Se quiser validar login protegido:
+   - `AUTH_ENABLED=true`
+   - preencher master e tenant no `.env`
+6. Se quiser validar payloads live Deriv:
+   - preencher `DERIV_APP_ID`
+7. Em `prod`/`staging`, `DATABASE_URL`, `APP_SECRET_KEY` e `CREDENTIAL_SECRET_KEY` devem ser explícitos.
 
 ## Subir infraestrutura
 
@@ -111,6 +113,7 @@ O endpoint `/dashboard` agora entrega uma página HTML operacional, útil para r
 - última decisão
 - blocos de risco
 - promoções recentes
+- quando `DERIV_APP_ID` estiver configurado e houver contas registradas, `/operations` e `/performance` passam a preferir payload live Deriv
 
 Se você quiser o payload bruto, use `/dashboard/data`.
 

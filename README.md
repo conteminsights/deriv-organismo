@@ -87,16 +87,22 @@ Depois de subir a API localmente, use:
 3. Em `APP_ENV=dev`, você pode começar sem Postgres:
    - deixe `DATABASE_URL=` vazio para usar `sqlite+aiosqlite:///./deriv-organismo.db`
    - deixe `REDIS_URL=` vazio para usar `redis://localhost:6379/0`
-4. Se quiser rodar com Postgres local já nessa fase:
-   - preencher `DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/deriv_organismo`
-   - preencher `REDIS_URL=redis://localhost:6379/0`
-5. Em produção/staging, `DATABASE_URL` deve ser explícito.
-6. Preencher `DERIV_APP_ID` sem commitar segredos.
+4. Defina secrets locais de desenvolvimento:
+   - `APP_SECRET_KEY`
+   - `CREDENTIAL_SECRET_KEY`
+5. Se quiser login master + tenant, habilite:
+   - `AUTH_ENABLED=true`
+   - `MASTER_EMAIL` / `MASTER_PASSWORD`
+   - `TENANT_EMAIL` / `TENANT_PASSWORD` / `TENANT_SCOPE_ID`
+6. Se quiser payloads live Deriv, preencha `DERIV_APP_ID`.
+7. Em produção/staging, `DATABASE_URL`, `APP_SECRET_KEY` e `CREDENTIAL_SECRET_KEY` devem ser explícitos.
 
 ## Execução local
 
 Subir a API em dev simples (SQLite local automático):
 - `uv run uvicorn deriv_organismo.main:app --reload`
+
+Se `AUTH_ENABLED=true`, autentique via `POST /login` antes de acessar as telas protegidas.
 
 Aplicar migrations no banco configurado:
 - `uv run alembic upgrade head`

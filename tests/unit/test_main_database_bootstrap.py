@@ -22,6 +22,8 @@ def test_resolve_database_url_prefers_explicit_value():
         app_env='prod',
         database_url=explicit_url,
         redis_url='redis://cache:6379/0',
+        app_secret_key='prod-app-secret-strong-001',
+        credential_secret_key='prod-credential-secret-strong-001',
     )
 
     assert resolve_database_url(settings) == explicit_url

@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from deriv_organismo.api.platform_payloads import seeded_accounts, summarize_accounts
+from deriv_organismo.api.routes_auth import require_api_auth, require_page_auth, resolve_tenant_id
 from deriv_organismo.api.templating import templates
 from deriv_organismo.services.deriv_account_service import DerivAccountService
 
@@ -39,14 +40,18 @@ async def serialize_accounts(request: Request, tenant_id: str) -> list[dict]:
 
 @router.get('/accounts')
 async def admin_accounts_page(request: Request, tenant_id: str = 'tenant_master'):
-    accounts = await serialize_accounts(request, tenant_id)
+    auth_response = require_page_auth(request)
+    if auth_response is not None:
+        return auth_response
+    effective_tenant_id = resolve_tenant_id(request, tenant_id)
+    accounts = await serialize_accounts(request, effective_tenant_id)
     return templates.TemplateResponse(
         request=request,
         name='admin_accounts.html',
         context={
             'active_page': 'admin_accounts',
             'accounts': accounts,
-            'tenant_id': tenant_id,
+            'tenant_id': effective_tenant_id,
             'summary': summarize_accounts(accounts),
         },
     )
@@ -54,7 +59,9 @@ async def admin_accounts_page(request: Request, tenant_id: str = 'tenant_master'
 
 @router.get('/accounts/data', response_model=list[RegisterAccountResponse])
 async def list_accounts_data(request: Request, tenant_id: str = 'tenant_master'):
-    rows = await serialize_accounts(request, tenant_id)
+    require_api_auth(request)
+    effective_tenant_id = resolve_tenant_id(request, tenant_id)
+    rows = await serialize_accounts(request, effective_tenant_id)
     return [
         RegisterAccountResponse(
             account_id=item['account_id'],
@@ -70,9 +77,11 @@ async def list_accounts_data(request: Request, tenant_id: str = 'tenant_master')
 
 @router.post('/accounts', response_model=RegisterAccountResponse, status_code=201)
 async def register_account(request: Request, payload: RegisterAccountRequest):
+    require_api_auth(request)
+    effective_tenant_id = resolve_tenant_id(request, payload.tenant_id)
     try:
         account, _credential = await get_account_service(request).register_account(
-            tenant_id=payload.tenant_id,
+            tenant_id=effective_tenant_id,
             login_id=payload.login_id,
             token=payload.token,
             account_type=payload.account_type,
