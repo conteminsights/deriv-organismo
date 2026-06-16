@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from deriv_organismo.domain.signals import (
     SpecialistDecisionReason,
     SpecialistInput,
@@ -43,7 +45,7 @@ class TrendFollowSpecialist(BaseSpecialist):
         slow_ma = sum(closes[-self.slow_window :]) / self.slow_window
         trend_strength = (fast_ma - slow_ma) / slow_ma if slow_ma else 0.0
 
-        direction = "long" if fast_ma > slow_ma else "short"
+        direction: Literal["long", "short"] = "long" if fast_ma > slow_ma else "short"
         should_trade = abs(trend_strength) >= self.min_trend_strength and fast_ma != slow_ma
         confidence = min(abs(trend_strength) * 100, 1.0)
 

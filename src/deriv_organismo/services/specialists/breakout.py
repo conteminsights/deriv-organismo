@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from deriv_organismo.domain.signals import (
     SpecialistDecisionReason,
     SpecialistInput,
@@ -41,7 +43,7 @@ class BreakoutSpecialist(BaseSpecialist):
         upward_expansion = recent_high > 0 and last_close > recent_high * (1 + self.breakout_threshold)
         downward_expansion = recent_low > 0 and last_close < recent_low * (1 - self.breakout_threshold)
         should_trade = upward_expansion or downward_expansion
-        direction = "long" if upward_expansion else "short"
+        direction: Literal["long", "short"] = "long" if upward_expansion else "short"
         expansion_reference = recent_high if upward_expansion else recent_low
         expansion_ratio = abs(last_close - expansion_reference) / expansion_reference if expansion_reference else 0.0
         confidence = min(expansion_ratio / max(self.breakout_threshold, 1e-6), 1.0)

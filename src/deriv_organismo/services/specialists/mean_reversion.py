@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from statistics import fmean, pstdev
+from typing import Literal
 
 from deriv_organismo.domain.signals import (
     SpecialistDecisionReason,
@@ -58,7 +59,7 @@ class MeanReversionSpecialist(BaseSpecialist):
         last_close = window_closes[-1]
         zscore = (last_close - mean_price) / std_dev
         should_trade = abs(zscore) >= self.zscore_threshold
-        direction = "long" if zscore < 0 else "short"
+        direction: Literal["long", "short"] = "long" if zscore < 0 else "short"
         confidence = min(abs(zscore) / max(self.zscore_threshold, 1e-6), 1.0)
 
         return SpecialistSignal(
