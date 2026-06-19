@@ -95,8 +95,16 @@ class DecisionPipeline:
 
         if not risk.allowed:
             decision = "blocked"
-        elif top_signal.should_trade and contextual_score >= 0.6:
-            decision = "approved"
+        elif top_signal.should_trade:
+            # Exploration mode: low threshold until we have enough track record
+            total_variant_trades = sum(
+                v.total_trades for v in _global_variant_lab.get_active_variants()
+            )
+            threshold = 0.15 if total_variant_trades < 30 else 0.6
+            if contextual_score >= threshold:
+                decision = "approved"
+            else:
+                decision = "observe"
         else:
             decision = "observe"
 

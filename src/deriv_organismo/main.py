@@ -102,8 +102,14 @@ async def app_lifespan(app: FastAPI):
                     mode=account.account_type,
                     deriv_login_id=account.login_id,
                 )
-                # Real trading gateway via persistent WebSocket
-                trading_gateway = DerivTradingGateway(client)
+                # Real trading gateway via its OWN client (separate from heartbeat)
+                trading_client = DerivClient(
+                    app_id=app.state.settings.deriv_app_id,
+                    base_ws_url=app.state.settings.deriv_api_base_ws,
+                )
+                await trading_client.connect()
+                await trading_client.authorize(token)
+                trading_gateway = DerivTradingGateway(trading_client)
                 real_execution = ExecutionService(trading_gateway=trading_gateway)
                 market_worker = ContinuousMarketWorker(
                     app_id=app.state.settings.deriv_app_id,
@@ -125,6 +131,10 @@ async def app_lifespan(app: FastAPI):
         # Stop market worker
         if market_worker is not None:
             await market_worker.stop()
+        # Close trading client
+        trading_client_for_cleanup = locals().get('trading_client')
+        if trading_client_for_cleanup is not None:
+            await trading_client_for_cleanup.close()
         # Cleanup WebSocket
         if realtime_service is not None:
             await realtime_service.gateway.disconnect()
