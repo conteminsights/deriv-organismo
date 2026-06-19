@@ -43,3 +43,36 @@ def build_ticks_subscribe_request(symbol: str) -> dict[str, str]:
 
 def build_forget_request(subscription_id: str) -> dict[str, str]:
     return {'forget': subscription_id}
+
+
+def build_proposal_request(
+    symbol: str,
+    amount: float,
+    contract_type: str = "CALL",
+    duration: int = 5,
+    duration_unit: str = "m",
+    currency: str = "USD",
+    basis: str = "stake",
+) -> dict[str, str | int | float]:
+    return {
+        'proposal': 1,
+        'symbol': symbol,
+        'amount': amount,
+        'basis': basis,
+        'contract_type': contract_type,
+        'currency': currency,
+        'duration': duration,
+        'duration_unit': duration_unit,
+    }
+
+
+def build_buy_request(proposal_id: str, price: float) -> dict[str, str | float]:
+    return {'buy': proposal_id, 'price': price}
+
+
+def build_proposal_open_contract_request(contract_id: int) -> dict[str, int]:
+    return {'proposal_open_contract': 1, 'contract_id': contract_id}
+
+
+def build_sell_request(contract_id: int) -> dict[str, int]:
+    return {'sell': contract_id, 'price': 0}

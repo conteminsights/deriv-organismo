@@ -13,8 +13,11 @@ from deriv_organismo.integrations.deriv.messages import (
     build_active_symbols_request,
     build_authorize_request,
     build_balance_request,
+    build_buy_request,
     build_ping_request,
     build_portfolio_request,
+    build_proposal_open_contract_request,
+    build_proposal_request,
     build_ticks_history_request,
     build_time_request,
 )
@@ -146,6 +149,35 @@ class DerivClient:
         response = await self.request(build_balance_request())
         balance = response.get('balance', {})
         return float(balance.get('balance', 0.0))
+
+    async def request_proposal(
+        self,
+        symbol: str,
+        amount: float,
+        contract_type: str = "CALL",
+        duration: int = 5,
+        duration_unit: str = "m",
+        currency: str = "USD",
+        basis: str = "stake",
+    ) -> dict:
+        """Request a trading proposal (quote) from Deriv."""
+        payload = build_proposal_request(
+            symbol=symbol, amount=amount, contract_type=contract_type,
+            duration=duration, duration_unit=duration_unit,
+            currency=currency, basis=basis,
+        )
+        response = await self.request(payload)
+        return response
+
+    async def buy_contract(self, proposal_id: str, price: float) -> dict:
+        """Buy a contract at the proposed price."""
+        response = await self.request(build_buy_request(proposal_id, price))
+        return response
+
+    async def check_contract(self, contract_id: int) -> dict:
+        """Check the status/outcome of a contract."""
+        response = await self.request(build_proposal_open_contract_request(contract_id))
+        return response
 
     async def ping(self) -> None:
         if self.is_connected:

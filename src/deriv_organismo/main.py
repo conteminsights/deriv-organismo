@@ -25,7 +25,9 @@ from deriv_organismo.services.deriv_gateway import DerivRealtimeGateway
 from deriv_organismo.services.deriv_realtime_data import DerivRealtimeDataService
 from deriv_organismo.services.deriv_token_validator import DerivTokenValidator
 from deriv_organismo.integrations.deriv.client import DerivClient
+from deriv_organismo.integrations.deriv.trading import DerivTradingGateway
 from deriv_organismo.services.live_buffer import tick_buffer, decision_buffer
+from deriv_organismo.services.execution import ExecutionService
 from deriv_organismo.workers.market_loop import ContinuousMarketWorker
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -100,6 +102,9 @@ async def app_lifespan(app: FastAPI):
                     mode=account.account_type,
                     deriv_login_id=account.login_id,
                 )
+                # Real trading gateway via persistent WebSocket
+                trading_gateway = DerivTradingGateway(client)
+                real_execution = ExecutionService(trading_gateway=trading_gateway)
                 market_worker = ContinuousMarketWorker(
                     app_id=app.state.settings.deriv_app_id,
                     token=token,
@@ -107,6 +112,7 @@ async def app_lifespan(app: FastAPI):
                     symbols=['R_100', 'R_75'],
                     candle_seconds=60,
                     cycle_sleep=15,
+                    execution_service=real_execution,
                 )
                 await market_worker.start()
                 app.state.market_worker = market_worker
