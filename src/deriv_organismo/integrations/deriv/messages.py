@@ -35,3 +35,11 @@ def build_ticks_history_request(
         'style': style,
         'granularity': granularity,
     }
+
+
+def build_ticks_subscribe_request(symbol: str) -> dict[str, str]:
+    return {'ticks': symbol}
+
+
+def build_forget_request(subscription_id: str) -> dict[str, str]:
+    return {'forget': subscription_id}
