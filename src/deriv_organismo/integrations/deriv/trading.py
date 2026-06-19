@@ -29,8 +29,8 @@ class DerivTradingGateway:
         symbol: str,
         amount: float,
         contract_type: str = "CALL",
-        duration: int = 5,
-        duration_unit: str = "m",
+        duration: int = 1,
+        duration_unit: str = "t",
         currency: str = "USD",
         basis: str = "stake",
     ) -> dict:
@@ -72,10 +72,10 @@ class DerivTradingGateway:
             return result
 
         symbol = payload.get("symbol", payload.get("proposal", "R_100"))
-        amount = payload.get("amount", 10)
+        amount = payload.get("amount", 1)
         contract_type = payload.get("contract_type", "CALL")
-        duration = payload.get("duration", 5)
-        duration_unit = payload.get("duration_unit", "m")
+        duration = payload.get("duration", 1)
+        duration_unit = payload.get("duration_unit", "t")
         currency = payload.get("currency", "USD")
         basis = payload.get("basis", "stake")
 

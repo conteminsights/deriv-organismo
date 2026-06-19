@@ -12,7 +12,7 @@ from deriv_organismo.integrations.deriv.stream import TickStream
 from deriv_organismo.services.candles import CandleFrameStore, RealTimeCandleBuilder
 from deriv_organismo.services.decision_pipeline import DecisionPipeline
 from deriv_organismo.services.execution import ExecutionService
-from deriv_organismo.services.live_buffer import decision_buffer, tick_buffer
+from deriv_organismo.services.live_buffer import decision_buffer, outcome_buffer, tick_buffer
 
 logger = logging.getLogger(__name__)
 
@@ -207,7 +207,7 @@ class ContinuousMarketWorker:
                 # Execute if approved
                 if decision.decision == 'approved' and self.account.mode == 'demo':
                     try:
-                        result = self.execution_service.execute_trade(
+                        result = await self.execution_service.execute_trade(
                             account=self.account,
                             symbol=symbol,
                             amount=5.0,  # small demo amount
@@ -222,11 +222,56 @@ class ContinuousMarketWorker:
                         }
                         self.trades.append(trade_record)
                         logger.info('market_trade_executed', extra=trade_record)
+
+                        # Track outcome — poll contract settlement
+                        gateway = getattr(self.execution_service, 'trading_gateway', None)
+                        if gateway and hasattr(gateway, 'last_contract_id') and gateway.last_contract_id:
+                            await self._track_outcome(
+                                gateway=gateway,
+                                contract_id=gateway.last_contract_id,
+                                symbol=symbol,
+                                specialist=decision.selected_specialist_key,
+                                amount=1.0,
+                            )
                     except Exception as e:
                         logger.error('market_trade_error', extra={
                             'symbol': symbol,
                             'error': str(e),
                         })
+
+    async def _track_outcome(self, gateway, contract_id: int, symbol: str,
+                              specialist: str, amount: float) -> None:
+        """Poll contract settlement and record win/loss outcome."""
+        for attempt in range(15):  # poll up to ~30s for tick contracts
+            try:
+                await asyncio.sleep(2)
+                resp = await gateway.check_contract(contract_id)
+                poc = resp.get('proposal_open_contract', {})
+                status = poc.get('status', 'open')
+                profit = float(poc.get('profit', 0))
+
+                if status in ('won', 'lost'):
+                    outcome_buffer.push({
+                        'contract_id': contract_id,
+                        'symbol': symbol,
+                        'specialist': specialist,
+                        'outcome': status,  # 'won' or 'lost'
+                        'profit': profit,
+                        'stake': amount,
+                        'cycle': self.cycle_count,
+                        'timestamp': datetime.now(timezone.utc).isoformat(),
+                    })
+                    logger.info('market_outcome', extra={
+                        'contract_id': contract_id,
+                        'symbol': symbol,
+                        'outcome': status,
+                        'profit': profit,
+                    })
+                    return
+            except Exception:
+                pass
+
+        logger.warning('market_outcome_timeout', extra={'contract_id': contract_id})
 
     async def _read_one_tick(
         self,

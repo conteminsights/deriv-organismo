@@ -62,7 +62,7 @@ class ExecutionService:
             strategy_key=strategy_key,
         )
 
-    def execute_trade(
+    async def execute_trade(
         self,
         *,
         account: AccountContext,
@@ -131,14 +131,14 @@ class ExecutionService:
                 },
             }
         )
-        proposal_response = self.trading_gateway.request_proposal(proposal_request)
+        proposal_response = await self.trading_gateway.request_proposal(proposal_request)
         proposal_id = proposal_response["proposal"]["id"]
         buy_request = (
             self.trading_gateway.build_buy_request(proposal_id=proposal_id, amount=request.amount)
             if hasattr(self.trading_gateway, "build_buy_request")
             else {"buy": proposal_id, "price": request.amount}
         )
-        buy_response = self.trading_gateway.submit_buy(buy_request)
+        buy_response = await self.trading_gateway.submit_buy(buy_request)
         events.append(
             self._record_event(
                 account_id=request.account_id,

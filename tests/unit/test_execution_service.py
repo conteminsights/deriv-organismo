@@ -1,3 +1,5 @@
+import pytest
+
 from deriv_organismo.domain.accounts import AccountContext
 from deriv_organismo.services.execution import ExecutionService
 
@@ -6,11 +8,11 @@ class StubTradingGateway:
     def __init__(self) -> None:
         self.calls: list[tuple[str, dict]] = []
 
-    def request_proposal(self, payload: dict) -> dict:
+    async def request_proposal(self, payload: dict) -> dict:
         self.calls.append(("proposal", payload))
         return {"proposal": {"id": "proposal_demo_1"}}
 
-    def submit_buy(self, payload: dict) -> dict:
+    async def submit_buy(self, payload: dict) -> dict:
         self.calls.append(("buy", payload))
         return {"buy": {"contract_id": "contract_demo_1", "status": "open"}}
 
@@ -32,11 +34,12 @@ def test_execution_service_requires_account_context_for_trade_submission():
     assert payload.account_id == "acc_primary"
 
 
-def test_execution_service_requests_proposal_and_buy_for_demo_account():
+@pytest.mark.asyncio
+async def test_execution_service_requests_proposal_and_buy_for_demo_account():
     gateway = StubTradingGateway()
     service = ExecutionService(trading_gateway=gateway)
 
-    result = service.execute_trade(
+    result = await service.execute_trade(
         account=build_account(mode="demo"),
         symbol="R_100",
         amount=10,
@@ -49,11 +52,12 @@ def test_execution_service_requests_proposal_and_buy_for_demo_account():
     assert result.events[-1].event_type == "trade_submitted"
 
 
-def test_execution_service_blocks_real_trade_when_strategy_is_not_promoted():
+@pytest.mark.asyncio
+async def test_execution_service_blocks_real_trade_when_strategy_is_not_promoted():
     gateway = StubTradingGateway()
     service = ExecutionService(trading_gateway=gateway, promoted_strategies={"mean_reversion"})
 
-    result = service.execute_trade(
+    result = await service.execute_trade(
         account=build_account(mode="real"),
         symbol="R_100",
         amount=10,

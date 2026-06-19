@@ -70,6 +70,53 @@ class DecisionBuffer:
         self._decisions.clear()
 
 
+class OutcomeBuffer:
+    """In-memory buffer for trade outcomes (win/loss)."""
+
+    def __init__(self, maxlen: int = 200) -> None:
+        self._outcomes: deque[dict[str, Any]] = deque(maxlen=maxlen)
+
+    def push(self, outcome: dict[str, Any]) -> None:
+        self._outcomes.append(outcome)
+
+    def recent(self, count: int = 20) -> list[dict[str, Any]]:
+        return list(self._outcomes)[-count:]
+
+    @property
+    def count(self) -> int:
+        return len(self._outcomes)
+
+    def win_rate(self, specialist_key: str | None = None) -> float:
+        """Calculate win rate, optionally filtered by specialist."""
+        items = list(self._outcomes)
+        if specialist_key:
+            items = [o for o in items if o.get('specialist') == specialist_key]
+        if not items:
+            return 0.0
+        wins = sum(1 for o in items if o.get('outcome') == 'won')
+        return round(wins / len(items), 3)
+
+    def total_stake(self) -> float:
+        return sum(o.get('stake', 0) for o in self._outcomes)
+
+    def total_profit(self) -> float:
+        return sum(o.get('profit', 0) for o in self._outcomes)
+
+    def stats(self) -> dict:
+        total = self.count
+        wins = sum(1 for o in self._outcomes if o.get('outcome') == 'won')
+        losses = sum(1 for o in self._outcomes if o.get('outcome') == 'lost')
+        return {
+            'total': total,
+            'wins': wins,
+            'losses': losses,
+            'win_rate': round(wins / total, 3) if total else 0.0,
+            'total_stake': self.total_stake(),
+            'total_profit': self.total_profit(),
+        }
+
+
 # Global singleton buffers
 tick_buffer = TickBuffer()
 decision_buffer = DecisionBuffer()
+outcome_buffer = OutcomeBuffer()

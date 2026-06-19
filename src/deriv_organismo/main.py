@@ -11,8 +11,8 @@ from deriv_organismo.api.routes_admin import router as admin_router
 from deriv_organismo.api.routes_auth import login, login_page, logout
 from deriv_organismo.api.routes_dashboard import dashboard, dashboard_data
 from deriv_organismo.api.routes_events import latest_decision, list_events
-from deriv_organismo.api.routes_live import recent_decisions, recent_ticks
-from deriv_organismo.api.routes_health import health, status
+from deriv_organismo.api.routes_live import recent_decisions, recent_ticks, trade_history, trade_stats
+from deriv_organismo.api.routes_health import health, status, worker_debug
 from deriv_organismo.api.routes_operations import operations_data, operations_page
 from deriv_organismo.api.routes_performance import performance_data, performance_page
 from deriv_organismo.config import DEFAULT_DEV_DATABASE_URL, Settings
@@ -174,6 +174,9 @@ def create_app(
     app.add_api_route('/performance/data', performance_data, methods=['GET'])
     app.add_api_route('/ticks/recent', recent_ticks, methods=['GET'])
     app.add_api_route('/decisions/recent', recent_decisions, methods=['GET'])
+    app.add_api_route('/trades/history', trade_history, methods=['GET'])
+    app.add_api_route('/trades/stats', trade_stats, methods=['GET'])
+    app.add_api_route('/debug/worker', worker_debug, methods=['GET'])
     return app
 
 
