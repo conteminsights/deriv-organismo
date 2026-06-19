@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
-from deriv_organismo.services.live_buffer import decision_buffer, outcome_buffer, tick_buffer
+from deriv_organismo.services.live_buffer import decision_buffer, outcome_buffer, tick_buffer, variant_lab
 
 router = APIRouter(tags=['live'])
 
@@ -43,3 +43,8 @@ async def trade_history() -> JSONResponse:
 async def trade_stats() -> JSONResponse:
     """Return aggregate trade statistics."""
     return JSONResponse(outcome_buffer.stats())
+
+
+async def lab_status() -> JSONResponse:
+    """Return the evolutionary lab status."""
+    return JSONResponse(variant_lab.status())

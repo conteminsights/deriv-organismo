@@ -13,6 +13,7 @@ from deriv_organismo.services.candles import CandleFrameStore, RealTimeCandleBui
 from deriv_organismo.services.decision_pipeline import DecisionPipeline
 from deriv_organismo.services.execution import ExecutionService
 from deriv_organismo.services.live_buffer import decision_buffer, outcome_buffer, tick_buffer
+from deriv_organismo.services.live_buffer import variant_lab
 
 logger = logging.getLogger(__name__)
 
@@ -194,6 +195,7 @@ class ContinuousMarketWorker:
                     'decision': decision.decision,
                     'regime': decision.regime_label,
                     'specialist': decision.selected_specialist_key,
+                    'variant_key': decision.selected_variant_key,
                     'score': decision.contextual_score,
                     'risk_allowed': decision.risk_allowed,
                     'candle': candle,
@@ -232,6 +234,7 @@ class ContinuousMarketWorker:
                                 symbol=symbol,
                                 specialist=decision.selected_specialist_key,
                                 amount=1.0,
+                                variant_key=decision.selected_variant_key,
                             )
                     except Exception as e:
                         logger.error('market_trade_error', extra={
@@ -240,7 +243,8 @@ class ContinuousMarketWorker:
                         })
 
     async def _track_outcome(self, gateway, contract_id: int, symbol: str,
-                              specialist: str, amount: float) -> None:
+                              specialist: str, amount: float,
+                              variant_key: str = "baseline") -> None:
         """Poll contract settlement and record win/loss outcome."""
         for attempt in range(15):  # poll up to ~30s for tick contracts
             try:
@@ -255,12 +259,19 @@ class ContinuousMarketWorker:
                         'contract_id': contract_id,
                         'symbol': symbol,
                         'specialist': specialist,
+                        'variant_key': variant_key,
                         'outcome': status,  # 'won' or 'lost'
                         'profit': profit,
                         'stake': amount,
                         'cycle': self.cycle_count,
                         'timestamp': datetime.now(timezone.utc).isoformat(),
                     })
+                    # Record outcome in lab for evolution
+                    variant_lab.record_outcome(
+                        variant_key=variant_key,
+                        outcome=status,
+                        profit=profit,
+                    )
                     logger.info('market_outcome', extra={
                         'contract_id': contract_id,
                         'symbol': symbol,

@@ -7,6 +7,7 @@ from deriv_organismo.domain.signals import SpecialistInput, SpecialistSignal
 from deriv_organismo.services.candles import CandleBar, CandleFrameStore
 from deriv_organismo.services.context_scorer import ContextScorer
 from deriv_organismo.services.live_buffer import outcome_buffer as _global_outcome_buffer
+from deriv_organismo.services.live_buffer import variant_lab as _global_variant_lab
 from deriv_organismo.services.meta_agent import MetaAgent
 from deriv_organismo.services.regime_detector import RegimeDetector
 from deriv_organismo.services.risk_engine import RiskEngine
@@ -20,6 +21,7 @@ class DecisionArtifact(BaseModel):
     decision: str
     regime_label: str
     selected_specialist_key: str
+    selected_variant_key: str = "baseline"
     contextual_score: float
     risk_allowed: bool
 
@@ -53,10 +55,28 @@ class DecisionPipeline:
         atr_values = self._build_atr_values(bars)
         regime = self.regime_detector.classify(closes=closes, atr_values=atr_values)
         selected = self.meta_agent.select_specialists(regime_label=regime.label, symbol=symbol)
-        signals = self._evaluate_specialists(selected=selected, symbol=symbol, timeframe=timeframe, closes=closes, regime_label=regime.label)
-        top_signal = max(signals, key=lambda item: item.confidence)
+        signals = self._evaluate_specialists_via_lab(
+            selected=selected, symbol=symbol, timeframe=timeframe, closes=closes,
+            regime_label=regime.label,
+        )
+
+        if not signals:
+            return DecisionArtifact(
+                decision="observe", regime_label=regime.label,
+                selected_specialist_key="no_trade",
+                contextual_score=0.0, risk_allowed=True,
+            )
+
+        # Prefer variants with higher win rate, else higher confidence
+        top = max(signals, key=lambda s: (
+            _global_variant_lab.get_or_create_variant(s['variant_key']).win_rate,
+            s['signal'].confidence,
+        ))
+        top_signal = top['signal']
+        top_variant_key = top['variant_key']
+
         contextual_score = self.context_scorer.score(
-            recent_win_rate=0.6,
+            recent_win_rate=_global_variant_lab.get_or_create_variant(top_variant_key).win_rate,
             long_term_win_rate=0.55,
             regime_match_score=1.0 if top_signal.should_trade else 0.4,
         )
@@ -84,6 +104,7 @@ class DecisionPipeline:
             decision=decision,
             regime_label=regime.label,
             selected_specialist_key=top_signal.specialist_key,
+            selected_variant_key=top_variant_key,
             contextual_score=contextual_score,
             risk_allowed=risk.allowed,
         )
@@ -104,18 +125,33 @@ class DecisionPipeline:
     def _build_atr_values(self, bars: list[CandleBar]) -> list[float]:
         return [bar["high"] - bar["low"] for bar in bars]
 
-    def _evaluate_specialists(
+    def _evaluate_specialists_via_lab(
         self,
         selected: list,
         symbol: str,
         timeframe: str,
         closes: list[float],
         regime_label: str,
-    ) -> list[SpecialistSignal]:
-        payload = SpecialistInput(
-            symbol=symbol,
-            timeframe=timeframe,
-            closes=closes,
-            regime_label=regime_label,
-        )
-        return [self.specialists[item.specialist_key].evaluate(payload) for item in selected]
+    ) -> list[dict]:
+        """Evaluate all active lab variants for the selected specialists.
+
+        Returns list of {'variant_key': str, 'signal': SpecialistSignal}.
+        """
+        results = []
+        for sel in selected:
+            sk = sel.specialist_key
+            active = _global_variant_lab.get_active_variants(specialist_keys=[sk])
+            if not active:
+                # Fallback to baseline
+                active = [_global_variant_lab.get_or_create_variant(f"{sk}_baseline")]
+
+            for variant in active:
+                specialist = _global_variant_lab.get_specialist_instance(variant.variant_key)
+                payload = SpecialistInput(
+                    symbol=symbol, timeframe=timeframe, closes=closes,
+                    regime_label=regime_label,
+                )
+                signal = specialist.evaluate(payload)
+                results.append({'variant_key': variant.variant_key, 'signal': signal})
+
+        return results

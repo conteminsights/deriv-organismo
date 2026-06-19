@@ -10,6 +10,8 @@ from collections import deque
 from datetime import datetime, timezone
 from typing import Any
 
+from deriv_organismo.services.lab import VariantLab
+
 
 class TickBuffer:
     """Thread-safe-ish in-memory ring buffer for recent tick prices."""
@@ -120,3 +122,4 @@ class OutcomeBuffer:
 tick_buffer = TickBuffer()
 decision_buffer = DecisionBuffer()
 outcome_buffer = OutcomeBuffer()
+variant_lab = VariantLab()
