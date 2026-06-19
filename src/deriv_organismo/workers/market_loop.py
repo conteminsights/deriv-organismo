@@ -210,7 +210,7 @@ class ContinuousMarketWorker:
                         result = await self.execution_service.execute_trade(
                             account=self.account,
                             symbol=symbol,
-                            amount=5.0,  # small demo amount
+                            amount=1.0,  # small demo amount
                             strategy_key=decision.selected_specialist_key,
                         )
                         trade_record = {

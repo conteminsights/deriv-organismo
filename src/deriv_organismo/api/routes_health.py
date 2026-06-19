@@ -32,6 +32,16 @@ async def worker_debug(request: Request) -> dict:
         "gateway_has_client": gateway is not None and not getattr(gateway, '_stub_mode', True),
         "last_contract_id": gateway.last_contract_id if gateway else None,
         "last_proposal_id": gateway.last_proposal_id if gateway else None,
-        "last_proposal": str(gateway._last_proposal)[:200] if gateway and gateway._last_proposal else None,
-        "last_buy": str(gateway._last_buy)[:200] if gateway and gateway._last_buy else None,
+        "meta_feedback": _get_meta_feedback(worker),
     }
+
+
+def _get_meta_feedback(worker) -> dict | None:
+    """Extract MetaAgent feedback state from the worker's decision pipeline."""
+    pipeline = getattr(worker, 'decision_pipeline', None)
+    if pipeline is None:
+        return None
+    meta = getattr(pipeline, 'meta_agent', None)
+    if meta is None:
+        return None
+    return getattr(meta, 'feedback_stats', None)

@@ -6,6 +6,7 @@ from deriv_organismo.domain.risk import RiskInput
 from deriv_organismo.domain.signals import SpecialistInput, SpecialistSignal
 from deriv_organismo.services.candles import CandleBar, CandleFrameStore
 from deriv_organismo.services.context_scorer import ContextScorer
+from deriv_organismo.services.live_buffer import outcome_buffer as _global_outcome_buffer
 from deriv_organismo.services.meta_agent import MetaAgent
 from deriv_organismo.services.regime_detector import RegimeDetector
 from deriv_organismo.services.risk_engine import RiskEngine
@@ -34,7 +35,9 @@ class DecisionPipeline:
     ) -> None:
         self.frame_store = frame_store or CandleFrameStore()
         self.regime_detector = regime_detector or RegimeDetector()
-        self.meta_agent = meta_agent or MetaAgent()
+        self.meta_agent = meta_agent or MetaAgent(
+            outcome_buffer=_global_outcome_buffer,
+        )
         self.context_scorer = context_scorer or ContextScorer()
         self.risk_engine = risk_engine or RiskEngine()
         self.specialists = {
