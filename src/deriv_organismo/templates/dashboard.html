@@ -227,7 +227,8 @@ function drawChart(ctx, canvas) {
 
 async function fetchLatest() {
   try {
-    const resp = await fetch('/ticks/recent');
+    const symbol = document.getElementById('chart-symbol')?.textContent?.trim() || 'R_100';
+    const resp = await fetch(`/ticks/recent?symbol=${encodeURIComponent(symbol)}`);
     const data = await resp.json();
     const ticks = data.ticks || [];
 

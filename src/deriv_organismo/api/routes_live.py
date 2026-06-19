@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
 from deriv_organismo.services.live_buffer import decision_buffer, tick_buffer
@@ -10,13 +10,14 @@ from deriv_organismo.services.live_buffer import decision_buffer, tick_buffer
 router = APIRouter(tags=['live'])
 
 
-async def recent_ticks() -> JSONResponse:
+async def recent_ticks(symbol: str = Query('R_100', description='Filter by symbol')) -> JSONResponse:
     """Return the most recent 100 ticks from the in-memory buffer."""
-    ticks = tick_buffer.recent(count=100)
+    ticks = tick_buffer.recent(count=100, symbol=symbol)
     return JSONResponse({
         'count': len(ticks),
         'ticks': ticks,
-        'latest_price': tick_buffer.latest_price(),
+        'latest_price': tick_buffer.latest_price(symbol=symbol),
+        'symbol': symbol,
     })
 
 

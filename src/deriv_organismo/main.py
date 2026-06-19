@@ -11,6 +11,7 @@ from deriv_organismo.api.routes_admin import router as admin_router
 from deriv_organismo.api.routes_auth import login, login_page, logout
 from deriv_organismo.api.routes_dashboard import dashboard, dashboard_data
 from deriv_organismo.api.routes_events import latest_decision, list_events
+from deriv_organismo.api.routes_live import recent_decisions, recent_ticks
 from deriv_organismo.api.routes_health import health, status
 from deriv_organismo.api.routes_operations import operations_data, operations_page
 from deriv_organismo.api.routes_performance import performance_data, performance_page
@@ -24,6 +25,8 @@ from deriv_organismo.services.deriv_gateway import DerivRealtimeGateway
 from deriv_organismo.services.deriv_realtime_data import DerivRealtimeDataService
 from deriv_organismo.services.deriv_token_validator import DerivTokenValidator
 from deriv_organismo.integrations.deriv.client import DerivClient
+from deriv_organismo.services.live_buffer import tick_buffer, decision_buffer
+from deriv_organismo.workers.market_loop import ContinuousMarketWorker
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / 'static'
@@ -72,6 +75,7 @@ async def app_lifespan(app: FastAPI):
 
     # Start persistent WebSocket connection to Deriv
     realtime_service = getattr(app.state, 'realtime_data_service', None)
+    market_worker = None
     if realtime_service is not None:
         gateway = realtime_service.gateway
         client = gateway.client
@@ -86,15 +90,36 @@ async def app_lifespan(app: FastAPI):
                 await gateway.fetch_authorize(token, account.login_id)
                 # Start heartbeat to keep connection alive
                 await client.start_heartbeat(interval_seconds=30)
-        except Exception:
-            logger = getattr(app.state, 'logger', None)
-            if logger:
-                logger.warning('deriv_startup_connection_failed_will_retry_on_request')
+
+                # Start background market worker (same process = shared buffers)
+                from deriv_organismo.domain.accounts import AccountContext
+                account_ctx = AccountContext(
+                    account_id=account.account_id,
+                    tenant_id='tenant_master',
+                    account_slug=account.name.lower().replace(' ', '_'),
+                    mode=account.account_type,
+                    deriv_login_id=account.login_id,
+                )
+                market_worker = ContinuousMarketWorker(
+                    app_id=app.state.settings.deriv_app_id,
+                    token=token,
+                    account=account_ctx,
+                    symbols=['R_100', 'R_75'],
+                    candle_seconds=60,
+                    cycle_sleep=15,
+                )
+                await market_worker.start()
+                app.state.market_worker = market_worker
+        except Exception as exc:
+            pass  # Non-critical; requests will create connections on demand
 
     try:
         yield
     finally:
-        # Cleanup
+        # Stop market worker
+        if market_worker is not None:
+            await market_worker.stop()
+        # Cleanup WebSocket
         if realtime_service is not None:
             await realtime_service.gateway.disconnect()
         await app.state.account_engine.dispose()
@@ -141,6 +166,8 @@ def create_app(
     app.add_api_route('/operations/data', operations_data, methods=['GET'])
     app.add_api_route('/performance', performance_page, methods=['GET'])
     app.add_api_route('/performance/data', performance_data, methods=['GET'])
+    app.add_api_route('/ticks/recent', recent_ticks, methods=['GET'])
+    app.add_api_route('/decisions/recent', recent_decisions, methods=['GET'])
     return app
 
 
