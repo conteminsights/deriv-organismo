@@ -6,6 +6,14 @@ from deriv_organismo.domain.deriv_account import DerivAccount
 
 
 class DerivRealtimeDataService:
+    """Real-time data service that fetches live data from Deriv via WebSocket.
+
+    Uses a persistent WebSocket connection managed by the gateway.
+    On first request per account, it authorizes the connection.
+    Subsequent requests reuse the authorized connection and call
+    balance/portfolio endpoints directly for fresh data.
+    """
+
     def __init__(self, account_service, gateway) -> None:
         self.account_service = account_service
         self.gateway = gateway
@@ -16,12 +24,15 @@ class DerivRealtimeDataService:
         operations: list[dict[str, Any]] = []
 
         for account in accounts:
-            token = await self.account_service.get_plaintext_token(tenant_id, account.account_id)
-            authorize = await self.gateway.fetch_authorize(token)
-            contracts = await self.gateway.fetch_portfolio(token)
-            summaries.append(self._build_account_summary(account, authorize))
-            for index, contract in enumerate(contracts, start=1):
-                operations.append(self._build_operation_row(account, tenant_id, contract, index))
+            try:
+                token = await self.account_service.get_plaintext_token(tenant_id, account.account_id)
+                authorize = await self.gateway.fetch_authorize(token, account.login_id)
+                contracts = await self.gateway.fetch_portfolio(token, account.login_id)
+                summaries.append(self._build_account_summary(account, authorize))
+                for index, contract in enumerate(contracts, start=1):
+                    operations.append(self._build_operation_row(account, tenant_id, contract, index))
+            except Exception:
+                summaries.append(self._offline_summary(account))
 
         return {
             'tenant_id': tenant_id,
@@ -40,25 +51,50 @@ class DerivRealtimeDataService:
         accounts = await self.account_service.list_accounts_by_tenant(tenant_id)
         rows: list[dict[str, Any]] = []
         for account in accounts:
-            token = await self.account_service.get_plaintext_token(tenant_id, account.account_id)
-            authorize = await self.gateway.fetch_authorize(token)
-            balance_current = float(authorize.get('balance', 0.0))
-            rows.append(
-                {
-                    'account_name': account.name,
-                    'login_id': account.login_id,
-                    'account_type': account.account_type,
-                    'balance_start': balance_current,
-                    'balance_current': balance_current,
-                    'gains': 0.0,
-                    'losses': 0.0,
-                    'net_pnl': 0.0,
-                    'win_rate': 0.0,
-                    'drawdown': 0.0,
-                    'trades': 0,
-                    'status': 'online',
-                }
-            )
+            try:
+                token = await self.account_service.get_plaintext_token(tenant_id, account.account_id)
+                authorize = await self.gateway.fetch_authorize(token, account.login_id)
+                loginid = authorize.get('loginid', account.login_id)
+
+                # Try to get fresh balance via balance endpoint
+                try:
+                    balance_current = await self.gateway.fetch_balance(token)
+                except Exception:
+                    balance_current = float(authorize.get('balance', 0.0))
+
+                rows.append(
+                    {
+                        'account_name': account.name,
+                        'login_id': loginid,
+                        'account_type': account.account_type,
+                        'balance_start': balance_current,
+                        'balance_current': balance_current,
+                        'gains': 0.0,
+                        'losses': 0.0,
+                        'net_pnl': 0.0,
+                        'win_rate': 0.0,
+                        'drawdown': 0.0,
+                        'trades': 0,
+                        'status': 'online',
+                    }
+                )
+            except Exception:
+                rows.append(
+                    {
+                        'account_name': account.name,
+                        'login_id': account.login_id,
+                        'account_type': account.account_type,
+                        'balance_start': 0.0,
+                        'balance_current': 0.0,
+                        'gains': 0.0,
+                        'losses': 0.0,
+                        'net_pnl': 0.0,
+                        'win_rate': 0.0,
+                        'drawdown': 0.0,
+                        'trades': 0,
+                        'status': 'offline',
+                    }
+                )
 
         total_balance = round(sum(item['balance_current'] for item in rows), 2)
         return {
@@ -86,6 +122,15 @@ class DerivRealtimeDataService:
             'login_id': authorize.get('loginid', account.login_id),
             'mode_label': 'Conta demo' if is_virtual else 'Conta real',
             'connection_status': 'online',
+        }
+
+    @staticmethod
+    def _offline_summary(account: DerivAccount) -> dict[str, Any]:
+        return {
+            'name': account.name,
+            'login_id': account.login_id,
+            'mode_label': 'Conta demo' if account.account_type == 'demo' else 'Conta real',
+            'connection_status': 'offline',
         }
 
     @staticmethod

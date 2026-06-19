@@ -69,9 +69,34 @@ def build_realtime_data_service(settings: Settings, account_service: DerivAccoun
 @asynccontextmanager
 async def app_lifespan(app: FastAPI):
     await create_all_tables(app.state.account_engine)
+
+    # Start persistent WebSocket connection to Deriv
+    realtime_service = getattr(app.state, 'realtime_data_service', None)
+    if realtime_service is not None:
+        gateway = realtime_service.gateway
+        client = gateway.client
+        try:
+            # Connect and authorize the primary account
+            accounts = await app.state.account_service.list_accounts_by_tenant('tenant_master')
+            if accounts:
+                account = accounts[0]
+                token = await app.state.account_service.get_plaintext_token(
+                    'tenant_master', account.account_id
+                )
+                await gateway.fetch_authorize(token, account.login_id)
+                # Start heartbeat to keep connection alive
+                await client.start_heartbeat(interval_seconds=30)
+        except Exception:
+            logger = getattr(app.state, 'logger', None)
+            if logger:
+                logger.warning('deriv_startup_connection_failed_will_retry_on_request')
+
     try:
         yield
     finally:
+        # Cleanup
+        if realtime_service is not None:
+            await realtime_service.gateway.disconnect()
         await app.state.account_engine.dispose()
 
 

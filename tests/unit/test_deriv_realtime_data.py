@@ -21,15 +21,15 @@ class FakeAccountService:
 
 
 class FakeDerivGateway:
-    async def fetch_authorize(self, token: str) -> dict:
+    async def fetch_authorize(self, token: str, login_id: str | None = None) -> dict:
         return {
-            'loginid': 'CR123456',
+            'loginid': login_id or 'CR123456',
             'balance': 1500.5,
             'is_virtual': 1,
             'currency': 'USD',
         }
 
-    async def fetch_portfolio(self, token: str) -> list[dict]:
+    async def fetch_portfolio(self, token: str, login_id: str | None = None) -> list[dict]:
         return [
             {
                 'contract_id': 9001,
@@ -40,6 +40,9 @@ class FakeDerivGateway:
                 'payout': 31.0,
             }
         ]
+
+    async def fetch_balance(self, token: str) -> float:
+        return 1500.5
 
 
 @pytest.mark.asyncio

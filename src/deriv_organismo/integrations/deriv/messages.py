@@ -14,6 +14,10 @@ def build_portfolio_request() -> dict[str, int]:
     return {'portfolio': 1}
 
 
+def build_balance_request() -> dict[str, int]:
+    return {'balance': 1}
+
+
 def build_active_symbols_request(product_type: str = 'basic') -> dict[str, str]:
     return {'active_symbols': product_type}
 
