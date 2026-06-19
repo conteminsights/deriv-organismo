@@ -12,6 +12,7 @@ from deriv_organismo.integrations.deriv.stream import TickStream
 from deriv_organismo.services.candles import CandleFrameStore, RealTimeCandleBuilder
 from deriv_organismo.services.decision_pipeline import DecisionPipeline
 from deriv_organismo.services.execution import ExecutionService
+from deriv_organismo.services.live_buffer import decision_buffer, tick_buffer
 
 logger = logging.getLogger(__name__)
 
@@ -200,6 +201,7 @@ class ContinuousMarketWorker:
                     'timestamp': datetime.now(timezone.utc).isoformat(),
                 }
                 self.decisions.append(decision_record)
+                decision_buffer.push(decision_record)
                 logger.info('market_decision', extra=decision_record)
 
                 # Execute if approved
@@ -241,6 +243,8 @@ class ContinuousMarketWorker:
         epoch = RealTimeCandleBuilder.extract_tick_epoch(tick_msg)
         if price is not None:
             builder.add_tick(price, epoch)
+            # Push to live buffer for dashboard
+            tick_buffer.push(price, symbol=builder.symbol, epoch=epoch)
             return True
         return False
 

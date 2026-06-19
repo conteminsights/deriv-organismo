@@ -3,88 +3,319 @@
 {% block content %}
 <main class="page-shell">
   <section class="hero">
-    <div class="label-tag">Design System Ferrari · Platform Overview</div>
+    <div class="label-tag">Live Dashboard · Deriv Organismo</div>
     <h1>Painel Operacional</h1>
-    <p class="subtitle">Visão executiva da plataforma multi-tenant em bootstrap: onboarding de contas, trades em andamento e performance por conta já aparecem como trio central do produto.</p>
-    <div class="status-badge"><span class="status-dot"></span> Aplicação {{ payload.app_status }} · tenant {{ payload.tenant_id }}</div>
+    <p class="subtitle">Dados ao vivo da Deriv com WebSocket persistente. Gráfico de ticks em tempo real, decisões dos especialistas e performance da conta demo.</p>
+    <div class="status-badge"><span class="status-dot"></span> {{ payload.app_status }} · {{ payload.tenant_id }} · <span id="live-price">{{ account.name }}</span></div>
   </section>
 
   <hr class="section-divider" />
 
   <section class="grid">
+    <!-- KPI: Saldo -->
     <article class="card kpi">
-      <div class="card-title">Conta principal</div>
-      <div class="metric-value">{{ account.name }}</div>
-      <div class="metric-meta">{{ account.login_id }} · {{ account.mode_label }}</div>
+      <div class="card-title">Saldo</div>
+      <div class="metric-value" id="kpi-balance">$ {{ "%.2f"|format(payload.performance.portfolio.balance_current) }}</div>
+      <div class="metric-meta">{{ account.login_id }} · demo</div>
     </article>
 
+    <!-- KPI: Trades ativos -->
     <article class="card kpi">
       <div class="card-title">Trades ativos</div>
-      <div class="metric-value">{{ payload.operations.active_count }}</div>
+      <div class="metric-value" id="kpi-trades">{{ payload.operations.active_count }}</div>
       <div class="metric-meta">{{ payload.operations.profitable_count }} em PnL positivo</div>
     </article>
 
+    <!-- KPI: PnL líquido -->
     <article class="card kpi">
       <div class="card-title">PnL líquido</div>
-      <div class="metric-value">{{ payload.performance.portfolio.net_pnl }}</div>
+      <div class="metric-value" id="kpi-pnl">$ {{ "%.2f"|format(payload.performance.portfolio.net_pnl) }}</div>
       <div class="metric-meta">Consolidado do tenant</div>
     </article>
 
+    <!-- KPI: Decisões -->
     <article class="card kpi">
-      <div class="card-title">Blocos de risco</div>
-      <div class="metric-value">{{ risk_block_count }}</div>
-      <div class="metric-meta">Ocorrências visíveis na leitura atual</div>
+      <div class="card-title">Decisões</div>
+      <div class="metric-value" id="kpi-decisions">0</div>
+      <div class="metric-meta">Últimos 20 minutos</div>
     </article>
 
-    <article class="card wide">
-      <div class="card-title">Última decisão</div>
-      <div class="item-list">
+    <!-- Gráfico de preços ao vivo -->
+    <article class="card wide" style="grid-column: span 8;">
+      <div class="card-title">Preço ao vivo · <span id="chart-symbol">R_100</span></div>
+      <div style="position: relative;">
+        <canvas id="tickChart" width="800" height="320" style="width:100%;height:320px;border:1px solid var(--card-border);background:var(--surface-elevated);"></canvas>
+        <div id="chart-tooltip" style="position:absolute;display:none;background:var(--absolute-black);border:1px solid var(--ferrari-red);padding:6px 10px;font-size:12px;pointer-events:none;"></div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;">
+        <span class="pill" style="font-size:11px;">Último: <strong id="tick-latest">—</strong></span>
+        <span class="pill" style="font-size:11px;">Máx: <strong id="tick-high">—</strong></span>
+        <span class="pill" style="font-size:11px;">Mín: <strong id="tick-low">—</strong></span>
+        <span class="pill" style="font-size:11px;">Ticks/min: <strong id="tick-rate">0</strong></span>
+      </div>
+    </article>
+
+    <!-- Últimas decisões -->
+    <article class="card side" style="grid-column: span 4;">
+      <div class="card-title">Últimas decisões</div>
+      <div id="decisions-list" style="display:grid;gap:8px;">
         <div class="item">
-          <div class="item-label">Última decisão</div>
-          <div class="item-value">{{ decision.decision }}</div>
-          <div class="item-meta">Símbolo: {{ decision.symbol }} · Specialist: {{ decision.specialist_key }}</div>
+          <div class="item-meta" style="color:var(--text-muted);">Nenhuma decisão ainda. Inicie o worker com <code style="color:var(--ferrari-red);">uv run python scripts/run_market_loop.py</code></div>
         </div>
       </div>
     </article>
 
-    <article class="card side">
-      <div class="card-title">Leitura executiva</div>
-      <div class="item-list">
-        <div class="item">
-          <div class="item-label">Estado atual</div>
-          <div class="item-value">Fundação pronta para produto</div>
-          <div class="item-meta">As três superfícies principais já existem: contas, operações e performance.</div>
-        </div>
+    <!-- Contas -->
+    <article class="card wide" style="grid-column: span 8;">
+      <div class="card-title">Contas</div>
+      <div class="table-shell">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Conta</th>
+              <th>Login ID</th>
+              <th>Tipo</th>
+              <th>Saldo</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for acct in payload.performance.accounts %}
+            <tr>
+              <td><div>{{ acct.account_name }}</div><div class="table-subtext">{{ acct.login_id }}</div></td>
+              <td>{{ acct.login_id }}</td>
+              <td><span class="pill {% if acct.account_type == 'demo' %}pill-neutral{% else %}pill-positive{% endif %}">{{ acct.account_type }}</span></td>
+              <td><strong>$ {{ "%.2f"|format(acct.balance_current) }}</strong></td>
+              <td><span class="pill {% if acct.status == 'online' %}pill-positive{% else %}pill-negative{% endif %}">{{ acct.status }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </article>
 
-    <article class="card wide">
-      <div class="card-title">As 3 telas núcleo</div>
-      <div class="item-list">
-        <div class="item">
-          <div class="item-value"><a href="/admin/accounts">1. Admin de contas e tokens</a></div>
-          <div class="item-meta">Cadastro de múltiplas contas Deriv por tenant, com saúde do tenant, status da conexão e base para criptografia/validação.</div>
-        </div>
-        <div class="item">
-          <div class="item-value"><a href="/operations">2. Operações em tempo real</a></div>
-          <div class="item-meta">Acompanhamento de trades em andamento, entrada, estado atual e PnL flutuante por operação.</div>
-        </div>
-        <div class="item">
-          <div class="item-value"><a href="/performance">3. Relatório de performance</a></div>
-          <div class="item-meta">Saldo, ganhos, perdas, drawdown e distribuição por estratégia por conta.</div>
-        </div>
+    <!-- Operações ativas -->
+    <article class="card side" style="grid-column: span 4;">
+      <div class="card-title">Operações ativas</div>
+      {% if payload.operations.operations %}
+      <div class="table-shell">
+        <table class="table">
+          <thead><tr><th>Símbolo</th><th>Lado</th><th>PnL</th></tr></thead>
+          <tbody>
+            {% for op in payload.operations.operations %}
+            <tr>
+              <td>{{ op.symbol }}</td>
+              <td><span class="pill {% if op.side == 'CALL' %}pill-positive{% else %}pill-negative{% endif %}">{{ op.side }}</span></td>
+              <td class="{% if op.pnl_float > 0 %}pill-positive{% elif op.pnl_float < 0 %}pill-negative{% endif %}">$ {{ "%.2f"|format(op.pnl_float) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
+      {% else %}
+      <div class="item"><div class="item-meta" style="color:var(--text-muted);">Nenhuma operação ativa no momento.</div></div>
+      {% endif %}
     </article>
 
-    <article class="card side">
-      <div class="card-title">APIs úteis</div>
-      <div class="link-cluster">
-        <a class="link-chip" href="/dashboard/data">/dashboard/data</a>
-        <a class="link-chip" href="/operations/data">/operations/data</a>
-        <a class="link-chip" href="/performance/data">/performance/data</a>
-        <a class="link-chip" href="/events">/events</a>
-      </div>
-    </article>
   </section>
 </main>
+
+<script>
+// Live dashboard — auto-refresh every 5 seconds
+const TICK_BUFFER = [];
+const MAX_TICKS = 200;
+let tickTimestamps = [];
+
+function initChart() {
+  const canvas = document.getElementById('tickChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = Math.min(rect.width - 2, 800);
+  canvas.height = 320;
+  drawChart(ctx, canvas);
+}
+
+function drawChart(ctx, canvas) {
+  const w = canvas.width, h = canvas.height;
+  const pad = { top: 20, right: 20, bottom: 30, left: 60 };
+  const chartW = w - pad.left - pad.right;
+  const chartH = h - pad.top - pad.bottom;
+
+  // Clear
+  ctx.fillStyle = '#111111';
+  ctx.fillRect(0, 0, w, h);
+
+  if (TICK_BUFFER.length < 2) {
+    ctx.fillStyle = '#666';
+    ctx.font = '14px DM Sans, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Aguardando ticks...', w / 2, h / 2);
+    return;
+  }
+
+  const prices = TICK_BUFFER.map(t => t.price);
+  const minP = Math.min(...prices);
+  const maxP = Math.max(...prices);
+  const range = maxP - minP || 1;
+  const padding = range * 0.1;
+
+  // Grid lines
+  ctx.strokeStyle = '#2a2a2a';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (chartH / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(w - pad.right, y);
+    ctx.stroke();
+
+    const val = maxP + padding - ((maxP - minP + padding * 2) / 4) * i;
+    ctx.fillStyle = '#666';
+    ctx.font = '11px DM Sans, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(val.toFixed(2), pad.left - 8, y + 4);
+  }
+
+  // Price line
+  const xStep = chartW / (prices.length - 1);
+  ctx.beginPath();
+  ctx.strokeStyle = '#DA291C';
+  ctx.lineWidth = 1.5;
+  ctx.shadowColor = 'rgba(218,41,28,0.3)';
+  ctx.shadowBlur = 4;
+
+  for (let i = 0; i < prices.length; i++) {
+    const x = pad.left + i * xStep;
+    const y = pad.top + chartH - ((prices[i] - (minP - padding)) / (range + padding * 2)) * chartH;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Gradient fill under line
+  const lastY = pad.top + chartH - ((prices[prices.length - 1] - (minP - padding)) / (range + padding * 2)) * chartH;
+  const grad = ctx.createLinearGradient(0, pad.top + chartH, 0, lastY);
+  grad.addColorStop(0, 'rgba(218,41,28,0.15)');
+  grad.addColorStop(1, 'rgba(218,41,28,0.01)');
+  ctx.lineTo(pad.left + (prices.length - 1) * xStep, pad.top + chartH);
+  ctx.lineTo(pad.left, pad.top + chartH);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Last price label
+  const lastPrice = prices[prices.length - 1];
+  ctx.fillStyle = '#DA291C';
+  ctx.font = 'bold 13px DM Sans, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(lastPrice.toFixed(2), pad.left + (prices.length - 1) * xStep + 6, lastY + 4);
+
+  // X-axis time labels
+  const step = Math.max(1, Math.floor(prices.length / 6));
+  ctx.fillStyle = '#666';
+  ctx.font = '10px DM Sans, sans-serif';
+  ctx.textAlign = 'center';
+  for (let i = 0; i < prices.length; i += step) {
+    const x = pad.left + i * xStep;
+    const t = TICK_BUFFER[i]?.ts || '';
+    const time = t.split('T')[1]?.split('.')[0]?.substring(0, 5) || '';
+    ctx.fillText(time, x, h - 8);
+  }
+}
+
+async function fetchLatest() {
+  try {
+    const resp = await fetch('/ticks/recent');
+    const data = await resp.json();
+    const ticks = data.ticks || [];
+
+    for (const t of ticks) {
+      const exists = TICK_BUFFER.some(e => e.epoch === t.epoch);
+      if (!exists) TICK_BUFFER.push(t);
+    }
+    while (TICK_BUFFER.length > MAX_TICKS) TICK_BUFFER.shift();
+
+    // Update stats
+    if (TICK_BUFFER.length > 0) {
+      const last = TICK_BUFFER[TICK_BUFFER.length - 1];
+      document.getElementById('tick-latest').textContent = last.price.toFixed(2);
+      const high = Math.max(...TICK_BUFFER.map(t => t.price));
+      const low = Math.min(...TICK_BUFFER.map(t => t.price));
+      document.getElementById('tick-high').textContent = high.toFixed(2);
+      document.getElementById('tick-low').textContent = low.toFixed(2);
+    }
+
+    // Tick rate
+    const now = Date.now();
+    tickTimestamps.push(now);
+    tickTimestamps = tickTimestamps.filter(t => now - t < 60000);
+    document.getElementById('tick-rate').textContent = tickTimestamps.length;
+
+    // Redraw chart
+    const canvas = document.getElementById('tickChart');
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      drawChart(ctx, canvas);
+    }
+
+    // Update decisions
+    document.getElementById('kpi-decisions').textContent = data.count || '0';
+
+  } catch (e) {
+    // silent
+  }
+}
+
+async function fetchDecisions() {
+  try {
+    const resp = await fetch('/decisions/recent');
+    const data = await resp.json();
+    const list = document.getElementById('decisions-list');
+    if (!data.decisions || data.decisions.length === 0) return;
+
+    let html = '';
+    const recent = data.decisions.slice(-10).reverse();
+    for (const d of recent) {
+      const badge = d.decision === 'approved' ? 'pill-positive' :
+                    d.decision === 'blocked' ? 'pill-negative' : 'pill-neutral';
+      html += `<div class="item" style="padding:10px 12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span class="pill ${badge}" style="font-size:10px;">${d.decision}</span>
+          <span style="color:var(--text-muted);font-size:10px;">${d.symbol}</span>
+        </div>
+        <div style="margin-top:4px;display:flex;gap:8px;font-size:11px;color:var(--text-tertiary);">
+          <span>${d.specialist}</span>
+          <span>${d.regime}</span>
+          <span>score: ${d.score ? d.score.toFixed(2) : '—'}</span>
+        </div>
+      </div>`;
+    }
+    list.innerHTML = html;
+  } catch (e) {
+    // silent
+  }
+}
+
+// Auto-refresh
+fetchLatest();
+fetchDecisions();
+setInterval(fetchLatest, 3000);
+setInterval(fetchDecisions, 5000);
+
+// Resize handling
+window.addEventListener('resize', () => {
+  const canvas = document.getElementById('tickChart');
+  if (canvas) {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = Math.min(rect.width - 2, 800);
+    const ctx = canvas.getContext('2d');
+    drawChart(ctx, canvas);
+  }
+});
+
+// Initial chart
+setTimeout(initChart, 100);
+</script>
 {% endblock %}

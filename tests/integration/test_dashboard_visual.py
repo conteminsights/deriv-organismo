@@ -11,5 +11,6 @@ def test_dashboard_returns_human_friendly_html():
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     assert "Painel Operacional" in response.text
-    assert "Conta principal" in response.text
-    assert "Última decisão" in response.text
+    assert "Saldo" in response.text
+    assert "tickChart" in response.text
+    assert "decisions-list" in response.text
